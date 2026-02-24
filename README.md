@@ -1,6 +1,6 @@
-# 电流监测器 (Current Monitor)
+# 电流监测器 (Battery Monitor)
 
-一个无需 Root 权限的 Android 应用，用于实时监测手机充电和放电电流。
+一个无需 Root 权限的 Android 应用，用于实时监测手机电池充电和放电电流。
 
 > **注意**：本项目完全由 AI 生成，仅供学习和参考使用。
 
