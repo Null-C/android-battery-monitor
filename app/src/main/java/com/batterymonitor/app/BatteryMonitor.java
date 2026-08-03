@@ -9,6 +9,8 @@ import android.os.Build;
 import com.batterymonitor.app.model.BatteryInfo;
 import com.batterymonitor.app.utils.DeviceInfoUtils;
 
+import java.util.ArrayDeque;
+
 /**
  * 电池监测核心类
  * 负责获取和统计电池相关信息
@@ -17,6 +19,12 @@ public class BatteryMonitor {
     private final Context context;
     private int minCurrent = Integer.MAX_VALUE;
     private int maxCurrent = Integer.MIN_VALUE;
+
+    // 电流历史记录（最多保留 3 分钟，每秒一个采样点）
+    private static final int HISTORY_MAX_SIZE = 180;
+    // 平均电流统计窗口（秒）
+    private static final int AVG_WINDOW_SECONDS = 10;
+    private final ArrayDeque<Integer> currentHistory = new ArrayDeque<>();
 
     public BatteryMonitor(Context context) {
         this.context = context.getApplicationContext();
@@ -53,6 +61,35 @@ public class BatteryMonitor {
     }
 
     /**
+     * 将当前电流加入历史记录，超出 3 分钟窗口的最旧数据被移除
+     */
+    private void addCurrentToHistory(int current) {
+        currentHistory.addLast(current);
+        while (currentHistory.size() > HISTORY_MAX_SIZE) {
+            currentHistory.removeFirst();
+        }
+    }
+
+    /**
+     * 计算最近 10 秒的平均电流（单位：mA）
+     * 与最低/最高电流一致，忽略 0 值（表示传感器无数据）
+     */
+    private int getAverageCurrent() {
+        int sum = 0;
+        int count = 0;
+        int startIndex = Math.max(0, currentHistory.size() - AVG_WINDOW_SECONDS);
+        int index = 0;
+        for (int value : currentHistory) {
+            if (index >= startIndex && value != 0) {
+                sum += value;
+                count++;
+            }
+            index++;
+        }
+        return count == 0 ? 0 : (int) Math.round(sum / (float) count);
+    }
+
+    /**
      * 获取电池状态广播（sticky），失败时返回 null
      */
     private Intent getBatteryStatus() {
@@ -69,6 +106,8 @@ public class BatteryMonitor {
     public BatteryInfo getBatteryInfo() {
         int currentNow = getCurrentCurrent();
         updateMinMax(currentNow);
+        addCurrentToHistory(currentNow);
+        int avgCurrent = getAverageCurrent();
 
         int level = 0;
         double temperature = 0;
@@ -104,6 +143,7 @@ public class BatteryMonitor {
                 currentNow,
                 minCurrent == Integer.MAX_VALUE ? currentNow : minCurrent,
                 maxCurrent == Integer.MIN_VALUE ? currentNow : maxCurrent,
+                avgCurrent,
                 level,
                 temperature,
                 voltage,

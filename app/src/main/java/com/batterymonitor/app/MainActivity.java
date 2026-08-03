@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.widget.TextView;
 
 import com.batterymonitor.app.model.BatteryInfo;
+import com.batterymonitor.app.view.CurrentChartView;
 
 /**
  * 主界面 - 电流监测器
@@ -18,7 +19,10 @@ public class MainActivity extends Activity {
 
     // UI 组件
     private TextView tvCurrentCurrent;
-    private TextView tvCurrentStats;
+    private TextView tvCurrentMin;
+    private TextView tvCurrentMax;
+    private TextView tvCurrentAvg;
+    private CurrentChartView chartCurrent;
     private TextView tvBatteryLevel;
     private TextView tvBatteryHealth;
     private TextView tvBatteryTemp;
@@ -52,7 +56,10 @@ public class MainActivity extends Activity {
 
     private void initViews() {
         tvCurrentCurrent = findViewById(R.id.tvCurrentCurrent);
-        tvCurrentStats = findViewById(R.id.tvCurrentStats);
+        tvCurrentMin = findViewById(R.id.tvCurrentMin);
+        tvCurrentMax = findViewById(R.id.tvCurrentMax);
+        tvCurrentAvg = findViewById(R.id.tvCurrentAvg);
+        chartCurrent = findViewById(R.id.chartCurrent);
         tvBatteryLevel = findViewById(R.id.tvBatteryLevel);
         tvBatteryHealth = findViewById(R.id.tvBatteryHealth);
         tvBatteryTemp = findViewById(R.id.tvBatteryTemp);
@@ -72,10 +79,13 @@ public class MainActivity extends Activity {
                 : getString(R.string.current_negative_format, current);
         tvCurrentCurrent.setText(currentText);
 
-        // 更新电流统计
-        String statsText = getString(R.string.current_stats_format,
-                info.getMinCurrent(), info.getMaxCurrent());
-        tvCurrentStats.setText(statsText);
+        // 更新电流统计（最低 / 最高 / 平均）
+        tvCurrentMin.setText(getString(R.string.current_min_format, info.getMinCurrent()));
+        tvCurrentMax.setText(getString(R.string.current_max_format, info.getMaxCurrent()));
+        tvCurrentAvg.setText(getString(R.string.current_avg_format, info.getAvgCurrent()));
+
+        // 更新趋势图
+        chartCurrent.addData(current);
 
         // 更新电池信息
         tvBatteryLevel.setText(getString(R.string.battery_level_format, info.getBatteryLevel()));

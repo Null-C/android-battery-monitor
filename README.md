@@ -9,7 +9,8 @@
 - ✅ **实时电流监测** - 显示当前充电/放电电流
 - ✅ **无 Root 要求** - 使用标准 BatteryManager API
 - ✅ **电池信息** - 电量、电压、温度、健康度
-- ✅ **电流统计** - 记录最低和最高电流值
+- ✅ **电流统计** - 记录最低、最高和平均电流值（平均为最近 10 秒均值）
+- ✅ **电流趋势图** - 折线图展示最近 3 分钟电流变化
 - ✅ **设备信息** - 显示手机型号、制造商和系统版本
 - ✅ **自动刷新** - 每秒自动更新数据
 
@@ -57,6 +58,8 @@ app/src/main/java/com/batterymonitor/app/
 ├── BatteryMonitor.java          # 电池监测核心类
 ├── model/
 │   └── BatteryInfo.java         # 电池信息数据模型
+├── view/
+│   └── CurrentChartView.java    # 电流趋势折线图（自定义 View）
 └── utils/
     └── DeviceInfoUtils.java     # 设备信息工具类
 ```
@@ -68,6 +71,7 @@ BatteryInfo(
     currentNow,        // 当前电流（mA）
     minCurrent,        // 最低电流
     maxCurrent,        // 最高电流
+    avgCurrent,        // 平均电流（最近 10 秒）
     batteryLevel,      // 电量百分比
     temperature,       // 温度（°C）
     voltage,           // 电压（V）

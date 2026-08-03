@@ -7,6 +7,7 @@ public class BatteryInfo {
     private final int currentNow;        // 当前电流
     private final int minCurrent;        // 最低电流
     private final int maxCurrent;        // 最高电流
+    private final int avgCurrent;        // 平均电流（最近 10 秒）
     private final int batteryLevel;      // 电量百分比
     private final double temperature;    // 温度（°C）
     private final double voltage;        // 电压（V）
@@ -15,12 +16,13 @@ public class BatteryInfo {
     private final String manufacturer;   // 制造商
     private final String androidVersion; // 系统版本
 
-    public BatteryInfo(int currentNow, int minCurrent, int maxCurrent,
+    public BatteryInfo(int currentNow, int minCurrent, int maxCurrent, int avgCurrent,
                        int batteryLevel, double temperature, double voltage,
                        int batteryHealth, String phoneModel, String manufacturer, String androidVersion) {
         this.currentNow = currentNow;
         this.minCurrent = minCurrent;
         this.maxCurrent = maxCurrent;
+        this.avgCurrent = avgCurrent;
         this.batteryLevel = batteryLevel;
         this.temperature = temperature;
         this.voltage = voltage;
@@ -40,6 +42,10 @@ public class BatteryInfo {
 
     public int getMaxCurrent() {
         return maxCurrent;
+    }
+
+    public int getAvgCurrent() {
+        return avgCurrent;
     }
 
     public int getBatteryLevel() {

@@ -4,6 +4,10 @@
 
     <!-- 布局标签 -->
     <string name="label_realtime_current">实时电流</string>
+    <string name="label_current_chart">📈 电流趋势</string>
+    <string name="label_min_current">最低</string>
+    <string name="label_max_current">最高</string>
+    <string name="label_avg_current">平均（近 10 秒）</string>
     <string name="label_battery_info">📊 电池信息</string>
     <string name="label_device_info">📱 设备信息</string>
     <string name="label_level">电量</string>
@@ -16,7 +20,6 @@
 
     <!-- 占位文本 -->
     <string name="current_placeholder">-- mA</string>
-    <string name="current_stats_placeholder">最低: -- mA  最高: -- mA</string>
     <string name="battery_level_placeholder">--%%</string>
     <string name="battery_temp_placeholder">--°C</string>
     <string name="battery_voltage_placeholder">--V</string>
@@ -25,13 +28,16 @@
     <!-- 格式化文本 -->
     <string name="current_positive_format">+%1$d mA</string>
     <string name="current_negative_format">%1$d mA</string>
-    <string name="current_stats_format">最低: %1$d mA  最高: %2$d mA</string>
+    <string name="current_min_format">%1$d mA</string>
+    <string name="current_max_format">%1$d mA</string>
+    <string name="current_avg_format">%1$d mA</string>
     <string name="battery_level_format">%1$d%%</string>
     <string name="battery_temp_format">%1$.1f°C</string>
     <string name="battery_voltage_format">%1$.1fV</string>
 
     <!-- 说明文字 -->
-    <string name="note_text">说明：\n• 正数表示充电，负数表示放电\n• 部分设备可能不支持电流检测\n• 数据每秒自动更新</string>
+    <string name="chart_axis_note">时间轴为最近 3 分钟，每秒一个采样点</string>
+    <string name="note_text">说明：\n• 正数表示充电，负数表示放电\n• 平均电流为最近 10 秒采样值的均值\n• 部分设备可能不支持电流检测\n• 数据每秒自动更新</string>
 
     <!-- 电池健康度（数组索引 = 健康度值 - 1） -->
     <string name="battery_health_unknown">未知</string>
