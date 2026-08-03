@@ -9,7 +9,7 @@
 - ✅ **实时电流监测** - 显示当前充电/放电电流
 - ✅ **无 Root 要求** - 使用标准 BatteryManager API
 - ✅ **电池信息** - 电量、电压、温度、健康度
-- ✅ **电流统计** - 记录最低、最高和平均电流值（平均为最近 10 秒均值）
+- ✅ **电流统计** - 记录最低、最高和平均电流值（平均为最近 10 秒采样值的均值）
 - ✅ **电流趋势图** - 折线图展示最近 3 分钟电流变化
 - ✅ **设备信息** - 显示手机型号、制造商和系统版本
 - ✅ **自动刷新** - 每秒自动更新数据
@@ -31,7 +31,8 @@ int currentNow = batteryManager.getIntProperty(
 
 - **支持版本**: Android 5.0+ (API 21+)
 - **返回单位**: 微安（μA），需转换为毫安（mA）
-- **正负值说明**: 负数表示放电，正数表示充电（应用层统一处理）
+- **正负值说明**: 应用统一处理后，正值表示充电，负值表示放电
+- **不支持检测**: 部分设备不支持电流检测，此时 `getIntProperty` 返回 `Integer.MIN_VALUE`，应用会将其视为无数据（0）
 
 #### 2. 获取电池信息
 
@@ -71,7 +72,7 @@ BatteryInfo(
     currentNow,        // 当前电流（mA）
     minCurrent,        // 最低电流
     maxCurrent,        // 最高电流
-    avgCurrent,        // 平均电流（最近 10 秒）
+    avgCurrent,        // 平均电流（最近 10 秒采样值的均值，含 0 值）
     batteryLevel,      // 电量百分比
     temperature,       // 温度（°C）
     voltage,           // 电压（V）
@@ -125,8 +126,7 @@ adb shell am start -n com.batterymonitor.app/.MainActivity
 ⚠️ **重要说明**:
 
 - 不同厂商设备的电流 API 支持程度可能不同
-- 某些设备上 `getIntProperty` 可能返回 0 或不准确
-- 电流值受硬件限制，部分设备可能不支持
+- 部分设备不支持电流检测，此时 `getIntProperty` 返回 `Integer.MIN_VALUE`，应用显示为 0
 - 正值表示充电，负数表示放电
 - 电池健康度显示为状态描述（良好、过热、损坏等）
 
