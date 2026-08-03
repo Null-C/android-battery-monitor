@@ -1,20 +1,18 @@
+# Gradle 构建缓存
+.gradle/
+build/
+
+# Android Studio / IntelliJ IDEA
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-app/build
-/captures
-.externalNativeBuild
-.cxx
+
+# 本地配置（由 IDE 生成）
 local.properties
+
+# 构建产物
 *.apk
 *.ap_
 *.aab
-generated/
+
+# 操作系统文件
+.DS_Store
