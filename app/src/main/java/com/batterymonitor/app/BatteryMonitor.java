@@ -27,25 +27,21 @@ public class BatteryMonitor {
      * 负数表示放电，正数表示充电
      * 注意：对原始系统返回值取反，以符合常规理解
      */
-    public int getCurrentCurrent() {
+    private int getCurrentCurrent() {
         BatteryManager batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
         if (batteryManager == null) {
             return 0;
         }
 
-        // API 21+ 支持获取电流
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            int currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
-            // 从微安转换为毫安，并取反以符合常规理解（正数充电，负数放电）
-            return -(currentNow / 1000);
-        }
-        return 0;
+        // 从微安转换为毫安（四舍五入），并取反以符合常规理解（正数充电，负数放电）
+        int currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+        return -(int) Math.round(currentNow / 1000.0f);
     }
 
     /**
      * 更新最小和最大电流值
      */
-    public void updateMinMax(int current) {
+    private void updateMinMax(int current) {
         if (current != 0) {
             if (current < minCurrent) {
                 minCurrent = current;
@@ -57,78 +53,14 @@ public class BatteryMonitor {
     }
 
     /**
-     * 获取电量百分比
+     * 获取电池状态广播（sticky），失败时返回 null
      */
-    public int getBatteryLevel() {
-        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = context.registerReceiver(null, ifilter);
-
-        if (batteryStatus == null) {
-            return 0;
+    private Intent getBatteryStatus() {
+        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return context.registerReceiver(null, filter, Context.RECEIVER_NOT_EXPORTED);
         }
-
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-
-        if (level == -1 || scale == -1) {
-            return 0;
-        }
-
-        return (level * 100) / scale;
-    }
-
-    /**
-     * 获取电池温度（单位：°C）
-     */
-    public double getBatteryTemperature() {
-        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = context.registerReceiver(null, ifilter);
-
-        if (batteryStatus == null) {
-            return 0;
-        }
-
-        int temperature = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
-        // 从 0.1°C 转换为 °C
-        return temperature / 10.0;
-    }
-
-    /**
-     * 获取电池电压（单位：V）
-     */
-    public double getBatteryVoltage() {
-        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = context.registerReceiver(null, ifilter);
-
-        if (batteryStatus == null) {
-            return 0;
-        }
-
-        int voltage = batteryStatus.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1);
-        // 从毫伏转换为伏特
-        return voltage / 1000.0;
-    }
-
-    /**
-     * 获取电池健康度
-     * 返回值：
-     * 1 = 未知
-     * 2 = 良好
-     * 3 = 过热
-     * 4 = 损坏
-     * 5 = 过压
-     * 6 = 故障
-     * 7 = 低温
-     */
-    public int getBatteryHealth() {
-        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = context.registerReceiver(null, ifilter);
-
-        if (batteryStatus == null) {
-            return 1; // 未知
-        }
-
-        return batteryStatus.getIntExtra(BatteryManager.EXTRA_HEALTH, 1);
+        return context.registerReceiver(null, filter);
     }
 
     /**
@@ -138,39 +70,47 @@ public class BatteryMonitor {
         int currentNow = getCurrentCurrent();
         updateMinMax(currentNow);
 
+        int level = 0;
+        double temperature = 0;
+        double voltage = 0;
+        int health = 1;
+
+        Intent batteryStatus = getBatteryStatus();
+        if (batteryStatus != null) {
+            // 电量百分比
+            int levelValue = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            if (levelValue != -1 && scale != -1) {
+                level = (levelValue * 100) / scale;
+            }
+
+            // 温度（0.1°C 转换为 °C，无数据时归零）
+            int tempValue = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
+            if (tempValue > 0) {
+                temperature = tempValue / 10.0;
+            }
+
+            // 电压（毫伏转换为伏特，无数据时归零）
+            int voltageValue = batteryStatus.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1);
+            if (voltageValue > 0) {
+                voltage = voltageValue / 1000.0;
+            }
+
+            // 健康度（默认未知）
+            health = batteryStatus.getIntExtra(BatteryManager.EXTRA_HEALTH, 1);
+        }
+
         return new BatteryInfo(
                 currentNow,
                 minCurrent == Integer.MAX_VALUE ? currentNow : minCurrent,
                 maxCurrent == Integer.MIN_VALUE ? currentNow : maxCurrent,
-                getBatteryLevel(),
-                getBatteryTemperature(),
-                getBatteryVoltage(),
-                getBatteryHealth(),
+                level,
+                temperature,
+                voltage,
+                health,
                 DeviceInfoUtils.getPhoneModel(),
                 DeviceInfoUtils.getManufacturer(),
                 DeviceInfoUtils.getAndroidVersion()
         );
-    }
-
-    /**
-     * 重置统计信息
-     */
-    public void resetStats() {
-        minCurrent = Integer.MAX_VALUE;
-        maxCurrent = Integer.MIN_VALUE;
-    }
-
-    /**
-     * 获取最低电流
-     */
-    public int getMinCurrent() {
-        return minCurrent == Integer.MAX_VALUE ? 0 : minCurrent;
-    }
-
-    /**
-     * 获取最高电流
-     */
-    public int getMaxCurrent() {
-        return maxCurrent == Integer.MIN_VALUE ? 0 : maxCurrent;
     }
 }

@@ -7,6 +7,10 @@ import android.os.Build;
  */
 public class DeviceInfoUtils {
 
+    private DeviceInfoUtils() {
+        // 工具类不允许实例化
+    }
+
     /**
      * 获取手机型号
      */
@@ -26,19 +30,5 @@ public class DeviceInfoUtils {
      */
     public static String getAndroidVersion() {
         return "Android " + Build.VERSION.RELEASE;
-    }
-
-    /**
-     * 获取 SDK 版本号
-     */
-    public static int getSdkVersion() {
-        return Build.VERSION.SDK_INT;
-    }
-
-    /**
-     * 获取完整的设备名称（制造商 + 型号）
-     */
-    public static String getFullDeviceName() {
-        return Build.MANUFACTURER + " " + Build.MODEL;
     }
 }

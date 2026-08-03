@@ -67,27 +67,38 @@ public class MainActivity extends Activity {
 
         // 更新当前电流
         int current = info.getCurrentNow();
-        String currentText = current + " mA";
-        if (current > 0) {
-            currentText = "+" + currentText;
-        }
+        String currentText = current > 0
+                ? getString(R.string.current_positive_format, current)
+                : getString(R.string.current_negative_format, current);
         tvCurrentCurrent.setText(currentText);
 
         // 更新电流统计
-        String statsText = String.format("最低: %d mA  最高: %d mA",
+        String statsText = getString(R.string.current_stats_format,
                 info.getMinCurrent(), info.getMaxCurrent());
         tvCurrentStats.setText(statsText);
 
         // 更新电池信息
-        tvBatteryLevel.setText(info.getBatteryLevel() + "%");
-        tvBatteryHealth.setText(info.getBatteryHealthString());
-        tvBatteryTemp.setText(info.getTemperature() + "°C");
-        tvBatteryVoltage.setText(info.getVoltage() + "V");
+        tvBatteryLevel.setText(getString(R.string.battery_level_format, info.getBatteryLevel()));
+        tvBatteryHealth.setText(getHealthString(info.getBatteryHealth()));
+        tvBatteryTemp.setText(getString(R.string.battery_temp_format, info.getTemperature()));
+        tvBatteryVoltage.setText(getString(R.string.battery_voltage_format, info.getVoltage()));
 
         // 更新设备信息
         tvPhoneModel.setText(info.getPhoneModel());
         tvManufacturer.setText(info.getManufacturer());
         tvAndroidVersion.setText(info.getAndroidVersion());
+    }
+
+    /**
+     * 将电池健康度数值转换为中文描述
+     */
+    private String getHealthString(int health) {
+        String[] healthStrings = getResources().getStringArray(R.array.battery_health);
+        int index = health - 1;
+        if (index < 0 || index >= healthStrings.length) {
+            return getString(R.string.battery_health_unknown);
+        }
+        return healthStrings[index];
     }
 
     @Override
@@ -101,13 +112,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        isMonitoring = false;
-        handler.removeCallbacks(updateRunnable);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
         isMonitoring = false;
         handler.removeCallbacks(updateRunnable);
     }

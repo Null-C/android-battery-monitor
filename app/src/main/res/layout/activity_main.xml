@@ -14,7 +14,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="电流监测器"
+            android:text="@string/app_name"
             android:textSize="24sp"
             android:textStyle="bold"
             android:textColor="#2196F3"
@@ -33,7 +33,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="实时电流"
+                android:text="@string/label_realtime_current"
                 android:textSize="14sp"
                 android:textColor="#757575"
                 android:layout_marginBottom="8dp" />
@@ -42,7 +42,7 @@
                 android:id="@+id/tvCurrentCurrent"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="-- mA"
+                android:text="@string/current_placeholder"
                 android:textSize="48sp"
                 android:textStyle="bold"
                 android:textColor="#2196F3"
@@ -52,7 +52,7 @@
                 android:id="@+id/tvCurrentStats"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="最低: -- mA  最高: -- mA"
+                android:text="@string/current_stats_placeholder"
                 android:textSize="14sp"
                 android:textColor="#757575" />
         </LinearLayout>
@@ -70,7 +70,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📊 电池信息"
+                android:text="@string/label_battery_info"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#424242"
@@ -86,7 +86,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="电量"
+                    android:text="@string/label_level"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -94,7 +94,7 @@
                     android:id="@+id/tvBatteryLevel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--%"
+                    android:text="@string/battery_level_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#4CAF50" />
@@ -110,7 +110,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="健康度"
+                    android:text="@string/label_health"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -118,7 +118,7 @@
                     android:id="@+id/tvBatteryHealth"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--"
+                    android:text="@string/dash_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#2196F3" />
@@ -134,7 +134,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="温度"
+                    android:text="@string/label_temperature"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -142,7 +142,7 @@
                     android:id="@+id/tvBatteryTemp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--°C"
+                    android:text="@string/battery_temp_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#FF9800" />
@@ -157,7 +157,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="电压"
+                    android:text="@string/label_voltage"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -165,7 +165,7 @@
                     android:id="@+id/tvBatteryVoltage"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--V"
+                    android:text="@string/battery_voltage_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#9C27B0" />
@@ -185,7 +185,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📱 设备信息"
+                android:text="@string/label_device_info"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#424242"
@@ -201,7 +201,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="型号"
+                    android:text="@string/label_model"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -209,7 +209,7 @@
                     android:id="@+id/tvPhoneModel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--"
+                    android:text="@string/dash_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#424242" />
@@ -225,7 +225,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="制造商"
+                    android:text="@string/label_manufacturer"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -233,7 +233,7 @@
                     android:id="@+id/tvManufacturer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--"
+                    android:text="@string/dash_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#424242" />
@@ -248,7 +248,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="系统"
+                    android:text="@string/label_system"
                     android:textSize="14sp"
                     android:textColor="#757575" />
 
@@ -256,7 +256,7 @@
                     android:id="@+id/tvAndroidVersion"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--"
+                    android:text="@string/dash_placeholder"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#424242" />
@@ -267,7 +267,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="说明：\n• 正数表示充电，负数表示放电\n• 部分设备可能不支持电流检测\n• 数据每秒自动更新"
+            android:text="@string/note_text"
             android:textSize="12sp"
             android:textColor="#9E9E9E"
             android:padding="8dp"

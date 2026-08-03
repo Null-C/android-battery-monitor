@@ -1,4 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">电流监测器</string>
+
+    <!-- 布局标签 -->
+    <string name="label_realtime_current">实时电流</string>
+    <string name="label_battery_info">📊 电池信息</string>
+    <string name="label_device_info">📱 设备信息</string>
+    <string name="label_level">电量</string>
+    <string name="label_health">健康度</string>
+    <string name="label_temperature">温度</string>
+    <string name="label_voltage">电压</string>
+    <string name="label_model">型号</string>
+    <string name="label_manufacturer">制造商</string>
+    <string name="label_system">系统</string>
+
+    <!-- 占位文本 -->
+    <string name="current_placeholder">-- mA</string>
+    <string name="current_stats_placeholder">最低: -- mA  最高: -- mA</string>
+    <string name="battery_level_placeholder">--%%</string>
+    <string name="battery_temp_placeholder">--°C</string>
+    <string name="battery_voltage_placeholder">--V</string>
+    <string name="dash_placeholder">--</string>
+
+    <!-- 格式化文本 -->
+    <string name="current_positive_format">+%1$d mA</string>
+    <string name="current_negative_format">%1$d mA</string>
+    <string name="current_stats_format">最低: %1$d mA  最高: %2$d mA</string>
+    <string name="battery_level_format">%1$d%%</string>
+    <string name="battery_temp_format">%1$.1f°C</string>
+    <string name="battery_voltage_format">%1$.1fV</string>
+
+    <!-- 说明文字 -->
+    <string name="note_text">说明：\n• 正数表示充电，负数表示放电\n• 部分设备可能不支持电流检测\n• 数据每秒自动更新</string>
+
+    <!-- 电池健康度（数组索引 = 健康度值 - 1） -->
+    <string name="battery_health_unknown">未知</string>
+    <string-array name="battery_health">
+        <item>未知</item>
+        <item>良好</item>
+        <item>过热</item>
+        <item>损坏</item>
+        <item>过压</item>
+        <item>故障</item>
+        <item>低温</item>
+    </string-array>
 </resources>

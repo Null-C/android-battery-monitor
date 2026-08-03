@@ -58,27 +58,6 @@ public class BatteryInfo {
         return batteryHealth;
     }
 
-    public String getBatteryHealthString() {
-        switch (batteryHealth) {
-            case 1:
-                return "未知";
-            case 2:
-                return "良好";
-            case 3:
-                return "过热";
-            case 4:
-                return "损坏";
-            case 5:
-                return "过压";
-            case 6:
-                return "故障";
-            case 7:
-                return "低温";
-            default:
-                return "未知";
-        }
-    }
-
     public String getPhoneModel() {
         return phoneModel;
     }
@@ -89,21 +68,5 @@ public class BatteryInfo {
 
     public String getAndroidVersion() {
         return androidVersion;
-    }
-
-    @Override
-    public String toString() {
-        return "BatteryInfo{" +
-                "currentNow=" + currentNow +
-                ", minCurrent=" + minCurrent +
-                ", maxCurrent=" + maxCurrent +
-                ", batteryLevel=" + batteryLevel +
-                ", temperature=" + temperature +
-                ", voltage=" + voltage +
-                ", batteryHealth=" + batteryHealth +
-                ", phoneModel='" + phoneModel + '\'' +
-                ", manufacturer='" + manufacturer + '\'' +
-                ", androidVersion='" + androidVersion + '\'' +
-                '}';
     }
 }
