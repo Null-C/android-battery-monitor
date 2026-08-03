@@ -43,6 +43,10 @@ public class BatteryMonitor {
 
         // 从微安转换为毫安（四舍五入），并取反以符合常规理解（正数充电，负数放电）
         int currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+        // 设备不支持电流检测时该属性返回 Integer.MIN_VALUE，返回 0 表示无数据
+        if (currentNow == Integer.MIN_VALUE) {
+            return 0;
+        }
         return -(int) Math.round(currentNow / 1000.0f);
     }
 
@@ -72,7 +76,7 @@ public class BatteryMonitor {
 
     /**
      * 计算最近 10 秒的平均电流（单位：mA）
-     * 与最低/最高电流一致，忽略 0 值（表示传感器无数据）
+     * 包含窗口内全部采样点（含 0 值），与界面"最近 10 秒采样值的均值"说明一致
      */
     private int getAverageCurrent() {
         int sum = 0;
@@ -80,7 +84,7 @@ public class BatteryMonitor {
         int startIndex = Math.max(0, currentHistory.size() - AVG_WINDOW_SECONDS);
         int index = 0;
         for (int value : currentHistory) {
-            if (index >= startIndex && value != 0) {
+            if (index >= startIndex) {
                 sum += value;
                 count++;
             }
