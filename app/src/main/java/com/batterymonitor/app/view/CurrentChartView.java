@@ -116,11 +116,12 @@ public class CurrentChartView extends View {
                     y + textPaint.getTextSize() / 3f, textPaint);
         }
 
-        // 绘制 X 轴标签：-3分 / -1分 / 现在
+        // 绘制 X 轴标签：-3分 / -2分 / -1分 / 现在（等分 4 段，每段 60 秒）
         textPaint.setTextAlign(Paint.Align.LEFT);
         canvas.drawText("-3分", labelLeft, height - 4f * density, textPaint);
         textPaint.setTextAlign(Paint.Align.CENTER);
-        canvas.drawText("-1分", labelLeft + chartWidth * 0.5f, height - 4f * density, textPaint);
+        canvas.drawText("-2分", labelLeft + chartWidth / 3f, height - 4f * density, textPaint);
+        canvas.drawText("-1分", labelLeft + chartWidth * 2f / 3f, height - 4f * density, textPaint);
         textPaint.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText("现在", chartRight, height - 4f * density, textPaint);
 
