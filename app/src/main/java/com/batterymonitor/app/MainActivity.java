@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.widget.TextView;
 
 import com.batterymonitor.app.model.BatteryInfo;
+import com.batterymonitor.app.view.BatteryLevelChartView;
 import com.batterymonitor.app.view.CurrentChartView;
 import com.batterymonitor.app.view.TemperatureChartView;
 
@@ -25,6 +26,7 @@ public class MainActivity extends Activity {
     private TextView tvCurrentAvg;
     private CurrentChartView chartCurrent;
     private TemperatureChartView chartTemperature;
+    private BatteryLevelChartView chartBatteryLevel;
     private TextView tvBatteryLevel;
     private TextView tvBatteryHealth;
     private TextView tvBatteryTemp;
@@ -63,6 +65,7 @@ public class MainActivity extends Activity {
         tvCurrentAvg = findViewById(R.id.tvCurrentAvg);
         chartCurrent = findViewById(R.id.chartCurrent);
         chartTemperature = findViewById(R.id.chartTemperature);
+        chartBatteryLevel = findViewById(R.id.chartBatteryLevel);
         tvBatteryLevel = findViewById(R.id.tvBatteryLevel);
         tvBatteryHealth = findViewById(R.id.tvBatteryHealth);
         tvBatteryTemp = findViewById(R.id.tvBatteryTemp);
@@ -87,9 +90,10 @@ public class MainActivity extends Activity {
         tvCurrentMax.setText(getString(R.string.current_max_format, info.getMaxCurrent()));
         tvCurrentAvg.setText(getString(R.string.current_avg_format, info.getAvgCurrent()));
 
-        // 更新趋势图
+        // 更新趋势图（顺序与布局中的图表排列一致：电流 → 温度 → 电量）
         chartCurrent.addData(current);
         chartTemperature.addData(info.getTemperature());
+        chartBatteryLevel.addData(info.getBatteryLevel());
 
         // 更新电池信息
         tvBatteryLevel.setText(getString(R.string.battery_level_format, info.getBatteryLevel()));

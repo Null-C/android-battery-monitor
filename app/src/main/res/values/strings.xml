@@ -6,6 +6,7 @@
     <string name="label_realtime_current">实时电流</string>
     <string name="label_current_chart">📈 电流趋势</string>
     <string name="label_temperature_chart">🌡️ 温度趋势</string>
+    <string name="label_battery_level_chart">🔋 电量趋势</string>
     <string name="label_min_current">最低</string>
     <string name="label_max_current">最高</string>
     <string name="label_avg_current">平均（近 10 秒）</string>
@@ -39,11 +40,13 @@
     <!-- 说明文字 -->
     <string name="chart_axis_note">时间轴为最近 3 分钟，每秒一个采样点</string>
     <string name="chart_axis_note_temperature">时间轴为最近 3 分钟；传感器无数据的时间点不绘制</string>
-    <string name="note_text">说明：\n• 正数表示充电，负数表示放电\n• 平均电流为最近 10 秒采样值的均值\n• 部分设备可能不支持电流检测\n• 部分设备可能不支持温度检测\n• 数据每秒自动更新</string>
+    <string name="chart_axis_note_level">时间轴为最近 3 分钟；无数据的时间点不绘制</string>
+    <string name="note_text">说明：\n• 正数表示充电，负数表示放电\n• 健康度共 7 级：未知、良好、过热、损坏、过压、故障、低温</string>
 
     <!-- 图表文案 -->
     <string name="chart_no_temperature_data">暂无电池温度数据</string>
-    <!-- X 轴刻度（电流图与温度图共用） -->
+    <string name="chart_no_level_data">暂无电池电量数据</string>
+    <!-- X 轴刻度（三张趋势图共用） -->
     <string name="chart_axis_3min_ago">-3分</string>
     <string name="chart_axis_2min_ago">-2分</string>
     <string name="chart_axis_1min_ago">-1分</string>

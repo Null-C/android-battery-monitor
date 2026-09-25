@@ -1,5 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  样式集中管理。
+
+  约定：样式里只放文字与外观属性，绝不放 layout_* （各行的 layout_weight 不同，
+  尺寸类属性属于布局而非样式）。
+
+  全局等宽字体走 android:textViewStyle（TextView 的 defStyleAttr），
+  而不是主题的 android:fontFamily —— 后者平台自带主题从未设置过，不可靠。
+-->
 <resources>
+    <!-- TextView 默认外观：全局等宽字体。含 emoji 的标题会显式覆盖回 sans-serif -->
+    <style name="AppTextView" parent="@android:style/Widget.Material.Light.TextView">
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
     <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 冷启动不白闪，系统栏区域与页面同底 -->
+        <item name="android:windowBackground">@color/bg_page</item>
+        <!-- 状态栏用主色：#0F766E 深底 + 白色图标在 API 21+ 全兼容。
+             不用浅色状态栏 —— windowLightStatusBar 与 SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+             都是 API 23，minSdk 21 上会让状态栏图标变成"浅底白图标"而完全看不见。
+             同理不设 navigationBarColor（windowLightNavigationBar 是 API 27）。 -->
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:colorEdgeEffect">@color/primary</item>
+        <item name="android:textViewStyle">@style/AppTextView</item>
+    </style>
+
+    <!-- 顶部条标题：唯一单独占满一行的文字，适合加字间距做仪器感 -->
+    <style name="TopBarTitle">
+        <item name="android:textSize">@dimen/text_title</item>
+        <item name="android:textColor">@color/primary</item>
+        <item name="android:textStyle">bold</item>
+        <!-- letterSpacing 的单位是 em（无量纲浮点），写成 "0.06em" 会让 AAPT2 报 invalid float -->
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!--
+      区块标题：含 emoji（📈🌡️📊📱），显式回到系统默认族。
+      monospace 族不含 CJK 与 emoji 字形，API 21/22 上"非默认族 + 彩色 emoji 字体"
+      的回退在部分 ROM 上有豆腐块记录；标题不用等宽也让"标题 vs 数据"有分层。
+      同理不加 letterSpacing（🌡️ 的变体选择符会参与加间距）。
+    -->
+    <style name="SectionTitle">
+        <item name="android:textSize">@dimen/text_title</item>
+        <item name="android:textColor">@color/text_label</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <!-- 主读数：纯拉丁与数字，等宽天然生效 -->
+    <style name="Reading">
+        <item name="android:textSize">@dimen/text_reading</item>
+        <item name="android:textColor">@color/accent_current</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- 表格行：标签左对齐 -->
+    <style name="PanelLabel">
+        <item name="android:textSize">@dimen/text_label</item>
+        <item name="android:textColor">@color/text_label</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- 表格行：数值右对齐（不要在右对齐文字上加 letterSpacing：
+         Android 会在最后一个字符之后也加间距，右对齐会看起来左边多缩一块） -->
+    <style name="PanelValue">
+        <item name="android:textSize">@dimen/text_value</item>
+        <item name="android:textColor">@color/text_value</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- 统计磁贴：标签在上、数值在下 -->
+    <style name="StatLabel">
+        <item name="android:textSize">@dimen/text_stat_label</item>
+        <item name="android:textColor">@color/text_label</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="StatValue">
+        <item name="android:textSize">@dimen/text_value</item>
+        <item name="android:textColor">@color/text_value</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- 说明文字：行距用倍率而非 lineSpacingExtra（dp 不随系统字体缩放，倍率会） -->
+    <style name="NoteText">
+        <item name="android:textSize">@dimen/text_note</item>
+        <item name="android:textColor">@color/text_note</item>
+        <item name="android:lineSpacingMultiplier">1.1</item>
     </style>
 </resources>

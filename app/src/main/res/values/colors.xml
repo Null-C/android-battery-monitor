@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  调色板 —— 全项目唯一色源。
+
+  改颜色只改这里；布局、drawable、Java 一律用 @color/ 引用，不要写字面量，
+  否则资源压缩（release 的 shrinkResources）会把没人引用的孤立色删掉，单一色源失效。
+
+  配色取向：浅色工程图纸 / 万用表面板。用细描边替代 Material 阴影，
+  每个数据族固定一个色相（电流 = 墨绿青，温度 = 深玫红，电量 = 深紫），其余数值统一墨色。
+
+  三个数据族的色相刻意拉开：墨绿青 175°、深玫红 340°、深紫 265°，
+  两两相隔 75°~90°，保证三张堆叠的图在同一亮度下仍能一眼区分。
+-->
+<resources>
+    <!-- 底板 -->
+    <color name="bg_page">#F2F4F7</color>
+    <color name="panel_bg">#FFFFFF</color>
+    <color name="line">#C7CDD4</color>
+    <color name="divider">#E3E8ED</color>
+
+    <!-- 文本 -->
+    <color name="text_label">#5B6570</color>
+    <color name="text_value">#1F2937</color>
+    <color name="text_note">#6B7280</color>
+
+    <!-- 强调色（同时用作状态栏底色，见 styles.xml 的 AppTheme） -->
+    <color name="primary">#0F766E</color>
+    <color name="accent_current">#0F766E</color>
+    <color name="accent_temperature">#9D174D</color>
+    <color name="accent_battery_level">#6D28D9</color>
+
+    <!-- 趋势图 -->
+    <color name="chart_grid">@color/line</color>
+    <color name="chart_axis_text">@color/text_note</color>
+    <color name="chart_line_current">@color/accent_current</color>
+    <color name="chart_line_temperature">@color/accent_temperature</color>
+    <color name="chart_line_battery_level">@color/accent_battery_level</color>
+</resources>

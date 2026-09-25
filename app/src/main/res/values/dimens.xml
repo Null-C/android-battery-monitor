@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  尺寸集中管理。
+
+  注意：趋势图内部的绘制几何常量（图顶留白、X 轴标签带高度、Y 轴左留白保底值）
+  不在这里，它们是 TrendChartView 的绘制常量，留在 Java 里并附公式注释更易读。
+-->
+<resources>
+    <!-- 间距 -->
+    <dimen name="page_padding">8dp</dimen>
+    <dimen name="panel_padding">8dp</dimen>
+    <dimen name="block_gap">6dp</dimen>
+    <dimen name="row_gap">3dp</dimen>
+
+    <!-- 描边与圆角 -->
+    <dimen name="stroke_width">1dp</dimen>
+    <dimen name="corner_radius">2dp</dimen>
+    <dimen name="divider_height">1dp</dimen>
+
+    <!-- 趋势图高度 -->
+    <dimen name="chart_height">96dp</dimen>
+
+    <!-- 字号 -->
+    <dimen name="text_title">13sp</dimen>
+    <dimen name="text_reading">28sp</dimen>
+    <dimen name="text_label">11sp</dimen>
+    <dimen name="text_stat_label">10sp</dimen>
+    <dimen name="text_value">12sp</dimen>
+    <dimen name="text_note">10sp</dimen>
+</resources>

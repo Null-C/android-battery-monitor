@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  面板背景：白底 + 1dp 描边 + 2dp 圆角，替代 Material 的 elevation 阴影。
+
+  不要在这里加 <padding> 元素：View.setBackgroundDrawable() 会在 View 自身
+  未设 padding 时用 drawable 的 padding 覆盖它，静默改变布局。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="@color/panel_bg" />
+    <stroke
+        android:width="@dimen/stroke_width"
+        android:color="@color/line" />
+    <corners android:radius="@dimen/corner_radius" />
+</shape>

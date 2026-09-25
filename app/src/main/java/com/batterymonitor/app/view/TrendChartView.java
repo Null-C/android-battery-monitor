@@ -7,7 +7,9 @@ import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Shader;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.View;
 
 import com.batterymonitor.app.R;
@@ -29,11 +31,21 @@ public abstract class TrendChartView extends View {
     private static final float PADDING_RATIO = 0.1f;
 
     // 绘制区域内边距（单位：dp）
-    private static final float LABEL_LEFT_MIN_DP = 44f;   // 左侧 Y 轴标签空间下限
-    private static final float LABEL_GAP_DP = 8f;         // 标签与绘图区之间的间隙
-    private static final float LABEL_BOTTOM_DP = 22f;     // 底部 X 轴标签空间
-    private static final float CHART_TOP_DP = 8f;
+    // 左侧保底值是渲染稳定性的承重墙：它让 labelLeft 在数据范围变化时不跳变。
+    // 保底值须 ≥ 最长 Y 标签字符数 × 等宽字前进量 × 轴字号 + LABEL_GAP，再留余量：
+    // 5 字符（如 "-9999"）× 0.6em × 11dp + 8dp = 41dp。
+    // 轴字号不要升到 12dp 以上，否则保底值会翻边，labelLeft 随标签位数在 44↔47dp 间跳变，
+    // 整张图（网格、折线、时间轴）会横向抖动。
+    private static final float LABEL_LEFT_MIN_DP = 44f;
+    private static final float LABEL_GAP_DP = 8f;
+    /** X 轴标签基线距底部的距离 */
+    private static final float LABEL_BASELINE_DP = 4f;
+    /** X 轴标签与绘图区之间的最小间隙 */
+    private static final float LABEL_CLEARANCE_DP = 1f;
+    private static final float CHART_TOP_DP = 6f;
     private static final float CHART_RIGHT_DP = 8f;
+    /** 坐标轴标签字号（sp，随系统字体缩放） */
+    private static final float AXIS_TEXT_SIZE_SP = 11f;
 
     // 渐变填充顶部透明度（20%）
     private static final int FILL_ALPHA_TOP = 0x33000000;
@@ -67,9 +79,13 @@ public abstract class TrendChartView extends View {
     protected TrendChartView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         density = getResources().getDisplayMetrics().density;
+        // 轴标签按 sp 折算，跟随系统字体缩放（fontScale 1.0 时等于 dp）。
+        // 不用 DisplayMetrics.scaledDensity：它自 API 34 起废弃，且不处理非线性字体缩放。
+        float axisTextSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
+                AXIS_TEXT_SIZE_SP, getResources().getDisplayMetrics());
 
         gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridPaint.setColor(0xFFE0E0E0);
+        gridPaint.setColor(resolveColor(R.color.chart_grid));
         gridPaint.setStrokeWidth(1f * density);
 
         // 折线与圆点的颜色由 getLineColor() 在绘制期应用
@@ -85,9 +101,21 @@ public abstract class TrendChartView extends View {
         dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         dotPaint.setStyle(Paint.Style.FILL);
 
+        // 坐标轴文字用等宽字体，使相邻采样的数值宽度稳定（比例字体下读数每秒会横向抖动）
         textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(0xFF9E9E9E);
-        textPaint.setTextSize(11f * density);
+        textPaint.setColor(resolveColor(R.color.chart_axis_text));
+        textPaint.setTextSize(axisTextSize);
+        textPaint.setTypeface(Typeface.MONOSPACE);
+    }
+
+    /**
+     * 读取颜色资源。
+     * Resources.getColor(int) 自 API 23 起被标记废弃，但本项目 minSdk 21 且不需要按主题解析
+     * （带 theme 的重载是 API 23，会被 lintVital 的 NewApi 拦住），故沿用旧签名。
+     */
+    @SuppressWarnings("deprecation")
+    protected int resolveColor(int resId) {
+        return getResources().getColor(resId);
     }
 
     // ---------------------------------------------------------------- 子类钩子
@@ -102,7 +130,10 @@ public abstract class TrendChartView extends View {
     /** Y 轴范围是否始终包含 0 基线 */
     protected abstract boolean includeZeroBaseline();
 
-    /** Y 轴最小跨度，避免标签因跨度过小而重复；0 表示不限制 */
+    /**
+     * Y 轴最小跨度，避免标签因跨度过小而重复；0 表示不限制。
+     * 该约束对"采样值全部相等"（跨度恰好为 0）的退化情形同样生效
+     */
     protected float getMinSpan() {
         return 0f;
     }
@@ -141,7 +172,12 @@ public abstract class TrendChartView extends View {
 
         float chartTop = CHART_TOP_DP * density;
         float chartRight = width - CHART_RIGHT_DP * density;
-        float chartHeight = height - chartTop - LABEL_BOTTOM_DP * density;
+        // 底部标签带按实测文字高度推导：X 轴标签基线在 height - LABEL_BASELINE_DP，
+        // 文字上沿 = 基线 + ascent，再留一点间隙，避免网格底边压到标签上。
+        // 字号随系统缩放到多大都不会重叠（原固定 22dp 里有约 8dp 是纯浪费）。
+        float labelBand = LABEL_BASELINE_DP * density - textPaint.ascent()
+                + LABEL_CLEARANCE_DP * density;
+        float chartHeight = height - chartTop - labelBand;
 
         // 画不出折线时（无数据或仅一个点），配置了提示文案的图表只显示提示
         String emptyHint = getEmptyText();
@@ -186,7 +222,7 @@ public abstract class TrendChartView extends View {
 
         // 绘制 X 轴标签：-3分 / -2分 / -1分 / 现在（等分 4 段，每段 60 秒）
         ensureXLabels();
-        float xLabelY = height - 4f * density;
+        float xLabelY = height - LABEL_BASELINE_DP * density;
         textPaint.setTextAlign(Paint.Align.LEFT);
         canvas.drawText(xLabels[0], labelLeft, xLabelY, textPaint);
         textPaint.setTextAlign(Paint.Align.CENTER);
@@ -244,7 +280,7 @@ public abstract class TrendChartView extends View {
         }
     }
 
-    /** 计算 Y 轴范围：先按需纳入 0 基线，再补偿退化与小跨度，最后留出余量 */
+    /** 计算 Y 轴范围：先按需纳入 0 基线，再补偿小跨度与退化，最后留出余量 */
     private void computeRange() {
         float min = Float.MAX_VALUE;
         float max = -Float.MAX_VALUE;
@@ -262,14 +298,19 @@ public abstract class TrendChartView extends View {
         }
 
         float span = max - min;
-        if (span <= 0f) {
-            // 采样值全部相等：向两侧各扩 1
-            min -= 1f;
-            max += 1f;
-        } else if (span < getMinSpan()) {
+        // 最小跨度必须在"采样值全部相等"（span == 0）时也生效。电量是整数百分比，
+        // 3 分钟内常常一个点都不变，若让退化情形先走 ±1 分支，跨度就只有 2，
+        // 网格步进 0.733 → 4 个整数标签必然重复（如 86 / 85 / 85 / 84）。
+        if (span < getMinSpan()) {
             float center = (min + max) / 2f;
             min = center - getMinSpan() / 2f;
             max = center + getMinSpan() / 2f;
+        }
+        // 退化保护：MIN_SPAN 为 0（电流图）且采样值全相同 —— 如设备不支持电流检测时恒为 0。
+        // 此时维持原有行为（向两侧各扩 1），电流图在该情形下的渲染逐位不变。
+        if (max - min <= 0f) {
+            min -= 1f;
+            max += 1f;
         }
 
         float fullSpan = max - min;
