@@ -8,6 +8,7 @@ import android.widget.TextView;
 
 import com.batterymonitor.app.model.BatteryInfo;
 import com.batterymonitor.app.view.CurrentChartView;
+import com.batterymonitor.app.view.TemperatureChartView;
 
 /**
  * 主界面 - 电流监测器
@@ -23,6 +24,7 @@ public class MainActivity extends Activity {
     private TextView tvCurrentMax;
     private TextView tvCurrentAvg;
     private CurrentChartView chartCurrent;
+    private TemperatureChartView chartTemperature;
     private TextView tvBatteryLevel;
     private TextView tvBatteryHealth;
     private TextView tvBatteryTemp;
@@ -60,6 +62,7 @@ public class MainActivity extends Activity {
         tvCurrentMax = findViewById(R.id.tvCurrentMax);
         tvCurrentAvg = findViewById(R.id.tvCurrentAvg);
         chartCurrent = findViewById(R.id.chartCurrent);
+        chartTemperature = findViewById(R.id.chartTemperature);
         tvBatteryLevel = findViewById(R.id.tvBatteryLevel);
         tvBatteryHealth = findViewById(R.id.tvBatteryHealth);
         tvBatteryTemp = findViewById(R.id.tvBatteryTemp);
@@ -86,6 +89,7 @@ public class MainActivity extends Activity {
 
         // 更新趋势图
         chartCurrent.addData(current);
+        chartTemperature.addData(info.getTemperature());
 
         // 更新电池信息
         tvBatteryLevel.setText(getString(R.string.battery_level_format, info.getBatteryLevel()));
