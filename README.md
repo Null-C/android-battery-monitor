@@ -121,6 +121,45 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.batterymonitor.app/.MainActivity
 ```
 
+## 版本发布流程
+
+版本号集中维护在项目根目录的 `gradle.properties`，`app/build.gradle` 从这里读取：
+
+| 字段 | 含义 |
+|------|------|
+| `VERSION_CODE` | 整数，**必须单调递增** |
+| `VERSION_NAME` | 显示给用户的版本字符串，形如 `1.0` |
+
+> ⚠️ `VERSION_CODE` 若不增大，Android 系统会认为不是新版本，已安装用户**无法覆盖安装**（报 `INSTALL_FAILED_VERSION_DOWNGRADE`），必须先卸载。因此每次发版务必 +1。
+
+### 发布一个新版本
+
+```bash
+# 1. 修改 gradle.properties 中的 VERSION_CODE（+1）与 VERSION_NAME
+#    例如 1 → 2、1.0 → 1.1
+
+# 2. 提交这次版本号改动
+git commit -am "发布 1.1"
+
+# 3. 在同一个 commit 上打附注 tag，命名沿用 v<版本名>
+git tag -a v1.1 -m "Release 1.1"
+
+# 4. 推送分支与 tag（注意：git push 不会自动推送 tag）
+git push && git push origin v1.1
+
+# 5. 构建发布包
+./gradlew assembleRelease
+```
+
+### 为什么版本号写在文件里，而不是由 git tag 自动推导
+
+tag 只作为**发布锚点**，用于回溯"哪个 commit 对应哪个版本"，不参与版本号计算。原因是构建不应依赖 git 状态：
+
+- GitHub 的 "Download ZIP" 得到的源码 tarball 没有 `.git` 目录
+- CI 默认的浅克隆（`fetch-depth: 1`）拉不到 tag，`git describe` 会失败或回退到错误值
+
+版本号写在文件里，任何环境下都能构建出正确的 APK。
+
 ## 注意事项
 
 ⚠️ **重要说明**:
