@@ -37,8 +37,10 @@ public abstract class TrendChartView extends View {
     // 左侧保底值是渲染稳定性的承重墙：它让 labelLeft 在数据范围变化时不跳变。
     // 保底值须 ≥ 最长 Y 标签字符数 × 等宽字前进量 × 轴字号 + LABEL_GAP，再留余量：
     // 5 字符（如 "-9999"）× 0.6em × 11dp + 8dp = 41dp。
-    // 轴字号不要升到 12dp 以上，否则保底值会翻边，labelLeft 随标签位数在 44↔47dp 间跳变，
-    // 整张图（网格、折线、时间轴）会横向抖动。
+    // 注意：轴字号是 sp，标签宽度会随系统字体缩放增长，所以该值在构造函数里
+    // 乘上 fontScale（只增不减）后才使用 —— 固定 44dp 在 fontScale ≥ 1.15 时会失效（见 labelLeftMin）。
+    // 轴字号不要升到 12dp 以上，否则保底值会翻边（12dp 下 5 字符标签 + 8dp 间隙恰好 44dp），
+    // labelLeft 随标签位数在 44↔47dp 间跳变，整张图（网格、折线、时间轴）会横向抖动。
     private static final float LABEL_LEFT_MIN_DP = 44f;
     private static final float LABEL_GAP_DP = 8f;
     /** X 轴标签基线距底部的距离 */
@@ -59,6 +61,8 @@ public abstract class TrendChartView extends View {
     private final String[] axisLabels = new String[GRID_LINES];
     private final String[] xLabels = new String[4];
     private final float density;
+    /** 左侧保底留白（px）= LABEL_LEFT_MIN_DP × density × fontScale，见构造函数 */
+    private final float labelLeftMin;
 
     private final Paint gridPaint;
     private final Paint linePaint;
@@ -82,6 +86,14 @@ public abstract class TrendChartView extends View {
     protected TrendChartView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         density = getResources().getDisplayMetrics().density;
+        // 左侧保底值必须随系统字体缩放一起放大：轴字号是 sp，5 字符标签的实测宽度
+        // （5 × 字前进量 × 轴字号 + 8dp 间隙）会随 fontScale 增长，而固定 44dp 在 fontScale ≥ 1.15
+        // 时就会被超过 —— 那一刻 labelLeft 改由「当前标签位数」决定，电流从 -999 变到 -1000
+        // 就会让整张图横向跳动，正是保底值要防的事。
+        // 只增不减（下限 1.0）：字体调小时标签也变小，保底值没必要跟着缩，否则本来宽松的留白
+        // 又被压回临界点。因此 fontScale ≤ 1.0 时取值恒为 44dp，与改动前逐位一致。
+        float fontScale = Math.max(1f, getResources().getConfiguration().fontScale);
+        labelLeftMin = LABEL_LEFT_MIN_DP * density * fontScale;
         // 轴标签按 sp 折算，跟随系统字体缩放（fontScale 1.0 时等于 dp）。
         // 不用 DisplayMetrics.scaledDensity：它自 API 34 起废弃，且不处理非线性字体缩放。
         float axisTextSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
@@ -185,7 +197,7 @@ public abstract class TrendChartView extends View {
         // 画不出折线时（无数据或仅一个点），配置了提示文案的图表只显示提示
         String emptyHint = getEmptyText();
         if (emptyHint != null && data.size() < 2) {
-            float labelLeft = LABEL_LEFT_MIN_DP * density;
+            float labelLeft = labelLeftMin;
             textPaint.setTextAlign(Paint.Align.CENTER);
             float baseline = chartTop + chartHeight / 2f
                     - (textPaint.ascent() + textPaint.descent()) / 2f;
@@ -207,10 +219,9 @@ public abstract class TrendChartView extends View {
         for (String label : axisLabels) {
             maxLabelWidth = Math.max(maxLabelWidth, textPaint.measureText(label));
         }
-        // 通常由保底值决定（电流图标签 ≤ 5 字符、温度图 ≤ 5 字符时均落在 44dp），
+        // 通常由保底值决定（三张图的标签均在 5 字符以内时恒定落在保底值内），
         // 仅在标签宽到会被左侧裁掉时才会扩展留白
-        float labelLeft = Math.max(LABEL_LEFT_MIN_DP * density,
-                maxLabelWidth + LABEL_GAP_DP * density);
+        float labelLeft = Math.max(labelLeftMin, maxLabelWidth + LABEL_GAP_DP * density);
         float chartWidth = chartRight - labelLeft;
 
         // 绘制水平网格线与 Y 轴标签

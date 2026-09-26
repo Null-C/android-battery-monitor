@@ -6,7 +6,7 @@
   · 颜色一律 @color/ 引用，尺寸一律 @dimen/ 引用，不在本文件写字面量
   · 面板用 @drawable/bg_panel 的细描边分隔，不用 elevation 阴影
   · 页面底色由主题的 windowBackground 提供，根节点不重复铺一层
-  · 14 个 id 与 MainActivity.initViews() 一一对应，重排时不得删除或改名，
+  · 15 个 id 与 MainActivity.initViews() 一一对应，重排时不得删除或改名，
     也不得把某个 id 挪到非 TextView 的 View 上（后者会导致运行时 ClassCastException）
   · 本文件内只能使用 strings.xml 已有的文案，不新增任何可见文字
 -->
@@ -22,20 +22,31 @@
         android:orientation="vertical"
         android:padding="@dimen/page_padding">
 
-        <!-- ① 顶部条 -->
+        <!-- ① 顶部条：应用名 + 常亮倒计时（同一行，倒计时在最右） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
             android:background="@drawable/bg_panel"
             android:padding="@dimen/panel_padding"
             android:layout_marginBottom="@dimen/block_gap">
+            <!-- 不设 baselineAligned="false"：两个不同字号的文字同排，按基线对齐才是正确的排版，
+                 且倒计时（10sp）的上下缘都落在标题（13sp）的行框内，行高不会被撑大 -->
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/app_name"
                 style="@style/TopBarTitle" />
+
+            <TextView
+                android:id="@+id/tvScreenOnCountdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="@string/screen_on_countdown_idle"
+                style="@style/CountdownText" />
         </LinearLayout>
 
         <!-- ② 电流读数 + 统计 -->

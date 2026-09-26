@@ -4,7 +4,7 @@
 
     <!-- 布局标签 -->
     <string name="label_realtime_current">实时电流</string>
-    <string name="label_current_chart">📈 电流趋势</string>
+    <string name="label_current_chart">⚡ 电流趋势</string>
     <string name="label_temperature_chart">🌡️ 温度趋势</string>
     <string name="label_battery_level_chart">🔋 电量趋势</string>
     <string name="label_min_current">最低</string>
@@ -36,6 +36,10 @@
     <string name="battery_level_format">%1$d%%</string>
     <string name="battery_temp_format">%1$.1f°C</string>
     <string name="battery_voltage_format">%1$.1fV</string>
+
+    <!-- 前台常亮倒计时（顶栏右侧）：剩余时间按 m:ss 显示，窗口未激活时显示占位符 -->
+    <string name="screen_on_countdown_format">常亮 %1$d:%2$02d</string>
+    <string name="screen_on_countdown_idle">--:--</string>
 
     <!-- 说明文字 -->
     <string name="chart_axis_note">时间轴为最近 3 分钟，每秒一个采样点</string>

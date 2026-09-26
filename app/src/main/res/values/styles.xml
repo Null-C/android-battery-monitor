@@ -38,7 +38,7 @@
     </style>
 
     <!--
-      区块标题：含 emoji（📈🌡️📊📱），显式回到系统默认族。
+      区块标题：含 emoji（⚡🌡️🔋📊📱），显式回到系统默认族。
       monospace 族不含 CJK 与 emoji 字形，API 21/22 上"非默认族 + 彩色 emoji 字体"
       的回退在部分 ROM 上有豆腐块记录；标题不用等宽也让"标题 vs 数据"有分层。
       同理不加 letterSpacing（🌡️ 的变体选择符会参与加间距）。
@@ -48,6 +48,17 @@
         <item name="android:textColor">@color/text_label</item>
         <item name="android:textStyle">bold</item>
         <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <!--
+      顶栏右侧的常亮倒计时：刻意压低存在感 —— 说明级字号 + 灰色，不加粗。
+      右对齐的文字不加 letterSpacing（Android 会在最后一个字符之后也加间距）；
+      全局等宽字体让它每秒跳动时数字宽度稳定，不会左右晃。
+    -->
+    <style name="CountdownText">
+        <item name="android:textSize">@dimen/text_note</item>
+        <item name="android:textColor">@color/text_note</item>
+        <item name="android:includeFontPadding">false</item>
     </style>
 
     <!-- 主读数：纯拉丁与数字，等宽天然生效 -->

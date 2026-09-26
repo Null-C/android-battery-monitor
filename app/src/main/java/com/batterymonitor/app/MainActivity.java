@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -22,7 +23,8 @@ public class MainActivity extends Activity {
     private Handler handler;
     private boolean isMonitoring = false;
 
-    // UI 组件
+    // UI 组件（顺序与布局中的排列一致）
+    private TextView tvScreenOnCountdown;
     private TextView tvCurrentCurrent;
     private TextView tvCurrentMin;
     private TextView tvCurrentMax;
@@ -50,11 +52,20 @@ public class MainActivity extends Activity {
     private static final long SCREEN_ON_TIMEOUT_MS =
             (long) TrendChartView.MAX_POINTS * UPDATE_INTERVAL;
 
+    /**
+     * 常亮窗口的截止时刻（`SystemClock.uptimeMillis()` 时基，0 表示窗口未激活）。
+     * 与 `Handler.postDelayed` 同一时基；倒计时由它推算而不是每秒递减，
+     * 否则 1 Hz 刷新循环本身的抖动会累积成可见误差
+     */
+    private long screenOnDeadlineMs;
+
     /** 常亮到期：摘掉 KEEP_SCREEN_ON 标记，屏幕恢复正常超时 */
     private final Runnable screenOnTimeoutRunnable = new Runnable() {
         @Override
         public void run() {
+            screenOnDeadlineMs = 0L;
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            updateScreenOnCountdown();
         }
     };
 
@@ -79,6 +90,7 @@ public class MainActivity extends Activity {
     }
 
     private void initViews() {
+        tvScreenOnCountdown = findViewById(R.id.tvScreenOnCountdown);
         tvCurrentCurrent = findViewById(R.id.tvCurrentCurrent);
         tvCurrentMin = findViewById(R.id.tvCurrentMin);
         tvCurrentMax = findViewById(R.id.tvCurrentMax);
@@ -99,11 +111,16 @@ public class MainActivity extends Activity {
      * 窗口内任何触摸都重新开始常亮计时。
      * 用 dispatchTouchEvent 而不是根布局的点击监听：ScrollView 与图表会消费触摸事件，
      * 根节点收不到 onClick，只有这里是窗口内所有触摸的必经之路。
-     * 只认 ACTION_DOWN —— 一次手势触发一次，多指的第二根手指是 ACTION_POINTER_DOWN，不会重复触发
+     * 只认 ACTION_DOWN —— 一次手势触发一次，多指的第二根手指是 ACTION_POINTER_DOWN，不会重复触发。
+     * `isMonitoring` 即 onResume → onPause 的标志：**只在 RESUMED 期间重新arm常亮窗口**。
+     * 否则"可见但已暂停"时（例如上面压了一个不可聚焦的覆盖窗口，我们的窗口仍持有焦点）
+     * 触摸会在暂停期间又把 KEEP_SCREEN_ON 加上，而倒计时只在触摸那一下刷新一次、之后因
+     * 1 Hz 循环已停而冻结在 3:00。加了守卫后不变量很干净：常亮窗口只在 RESUMED 期间存在，
+     * 存在时必有每秒刷新，倒计时不可能冻结
      */
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+        if (isMonitoring && ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
             restartScreenOnWindow();
         }
         return super.dispatchTouchEvent(ev);
@@ -114,6 +131,27 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         handler.removeCallbacks(screenOnTimeoutRunnable);
         handler.postDelayed(screenOnTimeoutRunnable, SCREEN_ON_TIMEOUT_MS);
+        screenOnDeadlineMs = SystemClock.uptimeMillis() + SCREEN_ON_TIMEOUT_MS;
+        // 立刻刷新：不然触摸后最多要等 1 秒才看到倒计时回到 3:00
+        updateScreenOnCountdown();
+    }
+
+    /**
+     * 刷新顶栏的常亮倒计时。
+     * 秒数**向上取整**：窗口刚开始显示 3:00、最后一秒显示 0:01，不会出现看着像卡死的 0:00；
+     * 剩余时间已耗尽时显示 `--:--`，表示当前没有在强制常亮（与其它占位符同一套语汇）
+     */
+    private void updateScreenOnCountdown() {
+        long remainingMs = screenOnDeadlineMs == 0L
+                ? 0L
+                : screenOnDeadlineMs - SystemClock.uptimeMillis();
+        if (remainingMs <= 0L) {
+            tvScreenOnCountdown.setText(R.string.screen_on_countdown_idle);
+            return;
+        }
+        int totalSeconds = (int) ((remainingMs + 999L) / 1000L);
+        tvScreenOnCountdown.setText(getString(R.string.screen_on_countdown_format,
+                totalSeconds / 60, totalSeconds % 60));
     }
 
     private void updateUI() {
@@ -146,6 +184,9 @@ public class MainActivity extends Activity {
         tvPhoneModel.setText(info.getPhoneModel());
         tvManufacturer.setText(info.getManufacturer());
         tvAndroidVersion.setText(info.getAndroidVersion());
+
+        // 常亮倒计时：每秒随本循环刷新一次
+        updateScreenOnCountdown();
     }
 
     /**
@@ -179,5 +220,8 @@ public class MainActivity extends Activity {
         // （窗口标记本身只在可见时生效，这里显式清掉是为了让计时状态与标记状态始终一致）
         handler.removeCallbacks(screenOnTimeoutRunnable);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        screenOnDeadlineMs = 0L;
+        // 同步刷新显示：onPause 后界面可能仍可见（如最近任务预览），倒计时不该继续宣称在常亮
+        updateScreenOnCountdown();
     }
 }
