@@ -47,7 +47,7 @@ int currentNow = batteryManager.getIntProperty(
 - 温度（0.1°C）(`EXTRA_TEMPERATURE`)
 - 健康度 (`EXTRA_HEALTH`)
 
-任一 extra 缺失时对应字段归零 / 保持默认（电量 `0`、温度 `0`、电压 `0`、健康度 `1`「未知」），不抛异常也不报错。温度与电量的 `0` 值正好是「传感器无数据」的哨兵值，对应趋势图据此跳过该采样点（见下文趋势图实现）。
+任一 extra 缺失时对应字段归零 / 保持默认（电量 `0`、温度 `0`、电压 `0`、健康度 `1`「未知」），不抛异常也不报错。温度与电量的 `0` 值正好是「传感器无数据」的哨兵值，对应趋势图会跳过该采样点。
 
 #### 3. 获取设备信息
 
@@ -84,20 +84,6 @@ app/src/main/java/com/batterymonitor/app/
 └── utils/
     └── DeviceInfoUtils.java     # 设备信息工具类
 ```
-
-### 趋势图实现
-
-三张趋势图共用基类 `TrendChartView`，子类只提供颜色、Y 轴标签格式、Y 轴范围策略与无数据提示文案：
-
-| | 电流趋势图 | 温度趋势图 | 电量趋势图 |
-|---|---|---|---|
-| 折线颜色 | 墨绿青 `#0F766E` | 深玫红 `#9D174D` | 深紫 `#6D28D9` |
-| Y 轴标签 | 整数（mA） | 一位小数（°C） | 整数（%） |
-| Y 轴范围 | **始终包含 0 基线**（正负电流需对比） | **自适应温度数据范围**（否则 25~35°C 的波动会被压成直线） | **自适应电量数据范围**（否则高位电量会被压成直线） |
-| Y 轴最小跨度 | 不限制 | `0.5°C`（保证 4 个一位小数标签不重复） | `3%`（保证 4 个整数标签不重复） |
-| 无数据时 | 仅绘制空白网格 | 居中显示「暂无电池温度数据」 | 居中显示「暂无电池电量数据」 |
-
-温度图与电量图都会**跳过无数据的采样点**（`EXTRA_TEMPERATURE` 缺失时温度归零、`EXTRA_LEVEL` / `EXTRA_SCALE` 缺失时电量留为 0），因此两者的时间轴含义都是「最近 3 分钟的有效采样点」——传感器全程不可用的设备上该图始终为空。
 
 ## 界面样式
 
@@ -175,44 +161,14 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.batterymonitor.app/.MainActivity
 ```
 
-## 版本发布流程
+## 版本号
 
 版本号集中维护在项目根目录的 `gradle.properties`，`app/build.gradle` 从这里读取：
 
 | 字段 | 含义 |
 |------|------|
-| `VERSION_CODE` | 整数，**必须单调递增** |
+| `VERSION_CODE` | 整数，**必须单调递增**，否则已安装用户无法覆盖安装（报 `INSTALL_FAILED_VERSION_DOWNGRADE`） |
 | `VERSION_NAME` | 显示给用户的版本字符串，形如 `1.0` |
-
-> ⚠️ `VERSION_CODE` 若不增大，Android 系统会认为不是新版本，已安装用户**无法覆盖安装**（报 `INSTALL_FAILED_VERSION_DOWNGRADE`），必须先卸载。因此每次发版务必 +1。
-
-### 发布一个新版本
-
-```bash
-# 1. 修改 gradle.properties 中的 VERSION_CODE（+1）与 VERSION_NAME
-#    例如 1 → 2、1.0 → 1.1
-
-# 2. 提交这次版本号改动
-git commit -am "发布 1.1"
-
-# 3. 在同一个 commit 上打附注 tag，命名沿用 v<版本名>
-git tag -a v1.1 -m "Release 1.1"
-
-# 4. 推送分支与 tag（注意：git push 不会自动推送 tag）
-git push && git push origin v1.1
-
-# 5. 构建发布包
-./gradlew assembleRelease
-```
-
-### 为什么版本号写在文件里，而不是由 git tag 自动推导
-
-tag 只作为**发布锚点**，用于回溯"哪个 commit 对应哪个版本"，不参与版本号计算。原因是构建不应依赖 git 状态：
-
-- GitHub 的 "Download ZIP" 得到的源码 tarball 没有 `.git` 目录
-- CI 默认的浅克隆（`fetch-depth: 1`）拉不到 tag，`git describe` 会失败或回退到错误值
-
-版本号写在文件里，任何环境下都能构建出正确的 APK。
 
 ## 注意事项
 

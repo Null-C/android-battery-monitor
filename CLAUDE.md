@@ -17,11 +17,7 @@ Android 电池电流监测应用（无 Root），纯 Java 实现，无第三方�
 
 ## 版本号管理
 
-版本号集中维护在根目录 `gradle.properties`（`VERSION_CODE` 单调递增整数、`VERSION_NAME` 显示字符串），`app/build.gradle` 通过 `project.VERSION_*` 读取，**不要在构建脚本里写死版本号**。
-
-发布流程：改 `gradle.properties` → 提交 → 在同一个 commit 上打 `v<版本名>` 附注 tag → 推送分支与 tag（`git push` 不推 tag）。详见 README「版本发布流程」。
-
-**`versionCode` 必须单调递增**，否则已安装用户无法覆盖安装。tag 仅作发布锚点，不参与版本号计算（构建不依赖 git 状态，源码 tarball / CI 浅克隆下 `git describe` 会失效）。
+版本号集中维护在根目录 `gradle.properties`（`VERSION_CODE` 单调递增整数、`VERSION_NAME` 显示字符串），`app/build.gradle` 通过 `project.VERSION_*` 读取，**不要在构建脚本里写死版本号**。**`versionCode` 必须单调递增**，否则已安装用户无法覆盖安装（报 `INSTALL_FAILED_VERSION_DOWNGRADE`）。
 
 ## 架构
 
