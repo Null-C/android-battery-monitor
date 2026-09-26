@@ -40,12 +40,14 @@ int currentNow = batteryManager.getIntProperty(
 
 #### 2. 获取电池信息
 
-通过 `ACTION_BATTERY_CHANGED` 广播获取：
+通过 `ACTION_BATTERY_CHANGED` sticky 广播获取（直接取最后一条广播，不常驻监听、不申请权限）：
 
 - 电量百分比 (`EXTRA_LEVEL`, `EXTRA_SCALE`)
 - 电压（毫伏）(`EXTRA_VOLTAGE`)
 - 温度（0.1°C）(`EXTRA_TEMPERATURE`)
 - 健康度 (`EXTRA_HEALTH`)
+
+任一 extra 缺失时对应字段归零 / 保持默认（电量 `0`、温度 `0`、电压 `0`、健康度 `1`「未知」），不抛异常也不报错。温度与电量的 `0` 值正好是「传感器无数据」的哨兵值，对应趋势图据此跳过该采样点（见下文趋势图实现）。
 
 #### 3. 获取设备信息
 
@@ -63,9 +65,7 @@ int currentNow = batteryManager.getIntProperty(
 
 实现要点：
 
-- 时长由 `TrendChartView.MAX_POINTS × MainActivity.UPDATE_INTERVAL` 推导，与时间轴**同源**，改动窗口时长时自动跟随
 - 触摸用 `Activity.dispatchTouchEvent()` 捕获，而不是根布局的点击监听 —— `ScrollView` 与图表会消费触摸事件，根节点收不到点击
-- 倒计时由截止时刻（`SystemClock.uptimeMillis()`）推算而非每秒递减，避免 1 Hz 刷新循环的抖动累积；秒数向上取整，因此不会出现看着像卡死的 `0:00`
 - **不使用 `WakeLock`、不需要 `WAKE_LOCK` 权限**，`AndroidManifest.xml` 无需改动
 
 ### 应用架构
@@ -87,7 +87,7 @@ app/src/main/java/com/batterymonitor/app/
 
 ### 趋势图实现
 
-三张趋势图共用基类 `TrendChartView`，子类只提供颜色、Y 轴标签格式与范围策略：
+三张趋势图共用基类 `TrendChartView`，子类只提供颜色、Y 轴标签格式、Y 轴范围策略与无数据提示文案：
 
 | | 电流趋势图 | 温度趋势图 | 电量趋势图 |
 |---|---|---|---|
@@ -99,40 +99,20 @@ app/src/main/java/com/batterymonitor/app/
 
 温度图与电量图都会**跳过无数据的采样点**（`EXTRA_TEMPERATURE` 缺失时温度归零、`EXTRA_LEVEL` / `EXTRA_SCALE` 缺失时电量留为 0），因此两者的时间轴含义都是「最近 3 分钟的有效采样点」——传感器全程不可用的设备上该图始终为空。
 
-最小跨度对「采样值全部相等」的退化情形同样生效，这一条对电量图是必需的：电量是整数百分比，3 分钟内常常一个采样点都不变，若退化成固定跨度 2，网格步进只有 0.733，4 个整数标签必然重复（如 `86 / 85 / 85 / 84`）。
-
 ## 界面样式
 
 界面取向是**浅色工程图纸 / 万用表面板**：等宽字体、1dp 细描边替代 Material 阴影、墨色系配色、紧凑排版让主要内容在主流机型上一屏内呈现。
 
-### 资源文件的职责
+每个数据族固定一个色相，数值文本与对应的趋势折线同色：电流 `#0F766E`（墨绿青）、温度 `#9D174D`（深玫红）、电量 `#6D28D9`（深紫）。其余数值统一墨色 `#1F2937`，页面底色 `#F2F4F7`，面板白底，状态栏用主色 `#0F766E`。
+
+样式资源按职责分文件：
 
 | 文件 | 职责 |
 |---|---|
-| `res/values/colors.xml` | **唯一色源**。改颜色只改这里；布局、drawable、Java 一律用 `@color/` 引用 |
-| `res/values/dimens.xml` | 间距、描边、圆角、图高与全部字号 |
+| `res/values/colors.xml` | 颜色，全项目唯一色源 |
+| `res/values/dimens.xml` | 间距、描边、圆角、图高与字号 |
 | `res/values/styles.xml` | 主题（页面底色、状态栏）与可复用文字样式 |
 | `res/drawable/bg_panel.xml` | 面板背景：白底 + 1dp 描边 + 2dp 圆角 |
-
-### 配色
-
-| 用途 | 色值 | 对比度 |
-|---|---|---|
-| 页面底色 | `#F2F4F7` | — |
-| 面板底色 | `#FFFFFF` | — |
-| 面板描边 / 图表网格 | `#C7CDD4` | 1.6:1（网格） |
-| 主色 / 电流族 | `#0F766E` | 7.2:1 |
-| 温度族 | `#9D174D` | 9.0:1 |
-| 电量族 | `#6D28D9` | 7.1:1 |
-| 标签 / 数值 | `#5B6570` / `#1F2937` | — |
-| 说明 / 图表坐标轴文字 | `#6B7280` | 4.8:1 |
-
-**一色一族**：每个数据族固定一个色相 —— 电流数值文本与电流折线同为 `#0F766E`，温度数值文本与温度折线同为 `#9D174D`，电量数值文本与电量折线同为 `#6D28D9`，其余数值统一墨色。三个色相刻意拉开（175° / 340° / 265°，两两相隔 75°~90°），保证三张堆叠的图在同一亮度下仍能一眼区分。
-
-### 两条实现约束
-
-- **全局等宽字体走 `android:textViewStyle`**（TextView 的 `defStyleAttr`），而不是主题的 `android:fontFamily` —— 后者平台自带主题从未设置过，不可靠。含 emoji 的 5 个区块标题显式覆盖回 `sans-serif`：`monospace` 族不含 CJK 与 emoji 字形，API 21/22 上「非默认族 + 彩色 emoji 字体」的回退在部分 ROM 上有豆腐块记录。
-- **状态栏固定用主色 `#0F766E`**（深底 + 白色图标）。`windowLightStatusBar` 与 `SYSTEM_UI_FLAG_LIGHT_STATUS_BAR` 都是 API 23，minSdk 21 上做不到「浅色状态栏 + 深色图标」；同理不设 `navigationBarColor`（`windowLightNavigationBar` 是 API 27）。因此本项目不建 `values-v23`。
 
 ### 数据模型
 
@@ -176,9 +156,14 @@ BatteryInfo(
 # 安装到设备
 ./gradlew installDebug
 
+# 只做 Java 编译验证（改完代码后最常用的快速检查，可完全离线）
+./gradlew :app:compileDebugJavaWithJavac --offline
+
 # 清理构建
 ./gradlew clean
 ```
+
+> 本项目的 `assembleDebug`、`:app:compileDebugJavaWithJavac` 与 `:app:lint` 都能完全离线执行（加 `--offline`）。唯一例外是 `assembleRelease`：它要跑 `lintVitalRelease` 与 `shrinkReleaseRes`，依赖 `lint-gradle` 构件，首次需要联网拉取后才能离线重复执行 —— 这与源码无关，是环境限制。
 
 ### 使用 adb 运行
 
@@ -236,6 +221,8 @@ tag 只作为**发布锚点**，用于回溯"哪个 commit 对应哪个版本"�
 - 不同厂商设备的电流 API 支持程度可能不同
 - 部分设备不支持电流检测，此时 `getIntProperty` 返回 `Integer.MIN_VALUE`，应用显示为 0
 - 部分设备不支持温度检测，此时 `EXTRA_TEMPERATURE` 缺失，温度显示为 0、温度趋势图不绘制该采样点
+- 广播中缺少 `EXTRA_LEVEL` / `EXTRA_SCALE` 时电量留为 0，电量趋势图同样不绘制该采样点（真实 0% 电量也会被跳过 —— 此时设备即将关机）
+- 电流的最低 / 最高值**忽略 0 值**（视为传感器无数据）；若整个运行期一个非 0 采样都没采到，两者会回退显示为当前电流，而不是初值
 - 正值表示充电，负数表示放电
 - 电池健康度显示为状态描述（良好、过热、损坏等）
 
