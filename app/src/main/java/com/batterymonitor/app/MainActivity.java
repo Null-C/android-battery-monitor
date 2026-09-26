@@ -4,12 +4,15 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.MotionEvent;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.batterymonitor.app.model.BatteryInfo;
 import com.batterymonitor.app.view.BatteryLevelChartView;
 import com.batterymonitor.app.view.CurrentChartView;
 import com.batterymonitor.app.view.TemperatureChartView;
+import com.batterymonitor.app.view.TrendChartView;
 
 /**
  * 主界面 - 电流监测器
@@ -37,6 +40,23 @@ public class MainActivity extends Activity {
 
     // 更新间隔（毫秒）
     private static final int UPDATE_INTERVAL = 1000;
+
+    /**
+     * 前台强制屏幕常亮的时长（毫秒）。
+     * 与图表时间轴同源（TrendChartView.MAX_POINTS × UPDATE_INTERVAL）：用户的目的就是看完一整条
+     * 时间轴，所以两者不能各写一份「3 分钟」，否则以后调整窗口时长时必然漂移。
+     * 到期后只摘掉常亮标记、交回系统超时策略，不是立刻锁屏。
+     */
+    private static final long SCREEN_ON_TIMEOUT_MS =
+            (long) TrendChartView.MAX_POINTS * UPDATE_INTERVAL;
+
+    /** 常亮到期：摘掉 KEEP_SCREEN_ON 标记，屏幕恢复正常超时 */
+    private final Runnable screenOnTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    };
 
     private final Runnable updateRunnable = new Runnable() {
         @Override
@@ -73,6 +93,27 @@ public class MainActivity extends Activity {
         tvPhoneModel = findViewById(R.id.tvPhoneModel);
         tvManufacturer = findViewById(R.id.tvManufacturer);
         tvAndroidVersion = findViewById(R.id.tvAndroidVersion);
+    }
+
+    /**
+     * 窗口内任何触摸都重新开始常亮计时。
+     * 用 dispatchTouchEvent 而不是根布局的点击监听：ScrollView 与图表会消费触摸事件，
+     * 根节点收不到 onClick，只有这里是窗口内所有触摸的必经之路。
+     * 只认 ACTION_DOWN —— 一次手势触发一次，多指的第二根手指是 ACTION_POINTER_DOWN，不会重复触发
+     */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            restartScreenOnWindow();
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    /** 重新开始一个常亮窗口：加上标记并重启到期计时（重复调用即重置） */
+    private void restartScreenOnWindow() {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        handler.removeCallbacks(screenOnTimeoutRunnable);
+        handler.postDelayed(screenOnTimeoutRunnable, SCREEN_ON_TIMEOUT_MS);
     }
 
     private void updateUI() {
@@ -125,6 +166,8 @@ public class MainActivity extends Activity {
         isMonitoring = true;
         updateUI(); // 立即更新一次
         handler.post(updateRunnable);
+        // 每次回到前台重新给满一个常亮窗口
+        restartScreenOnWindow();
     }
 
     @Override
@@ -132,5 +175,9 @@ public class MainActivity extends Activity {
         super.onPause();
         isMonitoring = false;
         handler.removeCallbacks(updateRunnable);
+        // 离开前台立刻解除常亮，避免在后台白耗电
+        // （窗口标记本身只在可见时生效，这里显式清掉是为了让计时状态与标记状态始终一致）
+        handler.removeCallbacks(screenOnTimeoutRunnable);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 }

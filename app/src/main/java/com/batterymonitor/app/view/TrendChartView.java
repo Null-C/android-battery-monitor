@@ -23,8 +23,11 @@ import java.util.ArrayList;
  * 子类只需提供颜色、Y 轴标签格式与范围策略（见下方各钩子）
  */
 public abstract class TrendChartView extends View {
-    /** 最大采样点数（3 分钟 × 60 秒） */
-    private static final int MAX_POINTS = 180;
+    /**
+     * 最大采样点数（3 分钟 × 60 秒）。
+     * 对 MainActivity 公开，用于推导前台常亮时长，使「时间轴长度」与「常亮时长」同源
+     */
+    public static final int MAX_POINTS = 180;
     /** 水平网格线数量 */
     private static final int GRID_LINES = 4;
     /** Y 轴范围上下各留的余量比例 */

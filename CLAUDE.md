@@ -25,7 +25,7 @@ Android 电池电流监测应用（无 Root），纯 Java 实现，无第三方�
 
 ## 架构
 
-- `MainActivity` — UI 层。`Handler` 以 `UPDATE_INTERVAL = 1000` 毫秒驱动 `updateUI()`，每次通过 `BatteryMonitor.getBatteryInfo()` 取快照并刷新全部 TextView 与图表。`onResume`/`onPause` 控制监测启停。
+- `MainActivity` — UI 层。`Handler` 以 `UPDATE_INTERVAL = 1000` 毫秒驱动 `updateUI()`，每次通过 `BatteryMonitor.getBatteryInfo()` 取快照并刷新全部 TextView 与图表。`onResume`/`onPause` 控制监测启停，同时负责前台防熄屏窗口的开始与解除（见「关键业务规则」）。
 - `BatteryMonitor` — 核心逻辑。每次调用 `getBatteryInfo()` 会：读取当前电流 → 更新 min/max → 写入 `currentHistory`（`ArrayDeque`，最多 180 点）→ 计算平均电流。
 - `BatteryInfo` — 不可变数据模型，承载一次采样快照。
 - `TrendChartView` — 趋势折线图**抽象基类**，`onDraw` 直接绘制网格、折线、渐变填充、时间轴刻度，无外部图表库。子类只实现配置钩子：`getLineColor()`（折线/圆点/填充基准色，必须不透明）、`formatAxisLabel()`（Y 轴标签文本）、`includeZeroBaseline()`（是否含 0 基线，故意定为 abstract 以防漏实现）、`getMinSpan()`（Y 轴最小跨度，默认 0 = 不限制，对「采样值全部相等」的退化情形同样生效）、`getEmptyTextResId()`（无数据提示文案，默认 0 = 不提示）。数据由图表自身持有（`addData`，最多 180 点滚动）。
@@ -51,6 +51,7 @@ Android 电池电流监测应用（无 Root），纯 Java 实现，无第三方�
 - **电量趋势图 Y 轴自适应**：与温度图同理**不强制包含 0 基线**，否则常年在高位的电量会被压成直线。`MIN_SPAN = 3f` 是必需的：电量是整数百分比，3 分钟内常常一个采样点都不变，跨度退化成 0 时若不强制最小跨度，4 个整数标签必然重复（`86 / 85 / 85 / 84`）。
 - **电量图跳过无数据采样点**：`BatteryMonitor` 在 `EXTRA_LEVEL` / `EXTRA_SCALE` 缺失时把电量留为 0，`BatteryLevelChartView.addData()` 对 `value <= 0` 直接 return。真实 0% 电量同样会被跳过（此时设备即将关机），与温度图跳过 0 的既有约定一致。副作用：电量图时间轴含义也是「最近 3 分钟的有效采样点」，故其卡片说明文案与电流图、温度图都不同。
 - **`computeRange()` 里最小跨度与退化保护的顺序**：必须先判 `span < getMinSpan()`，再兜底 `max - min <= 0` 的退化保护。顺序反过来会让 `MIN_SPAN` 在「采样值全部相等」时被静默短路 —— 而这正是电量图最常出现的情形。电流图（`MIN_SPAN = 0`）在新旧顺序下走的是同一条 `±1` 路径，渲染逐位不变；温度图只在「180 点全相同」时轴范围收紧（如恒 41.3°C：`42.5 / 41.7 / 40.9 / 40.1` → `41.6 / 41.4 / 41.2 / 41.0`）。
+- **前台防熄屏（最长 3 分钟常亮）**：用 `WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON` 实现（无权限、无 `WakeLock`）。`onResume` 与窗口内任何触摸都重新开始一个常亮窗口，触摸经 `Activity.dispatchTouchEvent()` 的 `ACTION_DOWN` 捕获 —— **不要改成根布局的点击监听**：`ScrollView` 与图表会消费触摸事件，根节点收不到 `onClick`。时长 `SCREEN_ON_TIMEOUT_MS = TrendChartView.MAX_POINTS × UPDATE_INTERVAL`，**与图表时间轴同源**（用户的目的就是看完一整条时间轴，两者分开写必然会漂移）；到期只 `clearFlags`、把屏幕交回系统超时策略，`onPause` 取消计时并清标记。**不要换成 `WakeLock`**（需要 `WAKE_LOCK` 权限且要手动释放），也不要在 `AndroidManifest.xml` 里加权限。刻意**不加**任何可见提示文案。
 - **电流图渲染不变量**：重构 `TrendChartView` 时须保持填充 Path 是折线 Path 的副本、绘制顺序为 填充 → 折线 → 圆点、Y 标签基线用 `getTextSize() / 3f`、`data.size() > 1` 守卫、`Math.round` 转整数标签。这些细节改动都会让既有电流图渲染变化。左侧留白 `labelLeft` 由标签实测宽度与 44dp 保底值取大，电流标签 ≤ 5 字符（即 |电流| ≤ 9999 mA）时保底值恒定生效。
 
   **注意区分**：上面这份清单是**渲染不变量**；而图内边距（`CHART_TOP_DP` / `LABEL_BASELINE_DP`）、轴字号（`AXIS_TEXT_SIZE_SP`）、轴字体属于**绘制几何**，样式改版时允许调整（会改变像素输出）。轴字号不要升到 12dp 以上：等宽族数字前进量约 0.6em，12dp 下 5 字符标签 + 8dp 间隙恰好卡在 44dp 保底边界，一旦翻边 `labelLeft` 会随标签位数在 44↔47dp 间跳变，整张图横向抖动。
@@ -61,7 +62,7 @@ Android 电池电流监测应用（无 Root），纯 Java 实现，无第三方�
 
 - "平均（近 10 秒）" ↔ `AVG_WINDOW_SECONDS = 10`，含 0 值
 - "正数表示充电，负数表示放电" ↔ `getCurrentCurrent()` 的取反
-- "时间轴为最近 3 分钟，每秒一个采样点" ↔ `MAX_POINTS = 180`、`UPDATE_INTERVAL = 1000`
+- "时间轴为最近 3 分钟，每秒一个采样点" ↔ `MAX_POINTS = 180`、`UPDATE_INTERVAL = 1000`（前台常亮时长 `SCREEN_ON_TIMEOUT_MS` 也由这两个常量相乘得到，改窗口时长会同时改变常亮时长）
 - "时间轴为最近 3 分钟；传感器无数据的时间点不绘制" ↔ 温度图跳过 `temperature <= 0` 的采样点（**与电流图、电量图的说明文案都不同，勿混用**）
 - "时间轴为最近 3 分钟；无数据的时间点不绘制" ↔ 电量图跳过 `batteryLevel <= 0` 的采样点（**同上，勿混用**）
 - "-3分 / -2分 / -1分 / 现在" ↔ `MAX_POINTS = 180`、`UPDATE_INTERVAL = 1000`（三张图共用 `strings.xml` 中的 `chart_axis_*` 四条）
