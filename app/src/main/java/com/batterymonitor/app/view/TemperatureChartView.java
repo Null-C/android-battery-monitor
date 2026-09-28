@@ -62,7 +62,17 @@ public class TemperatureChartView extends TrendChartView {
 
     @Override
     protected float getStepUnit() {
-        return 0.1f; // 温度标签保留一位小数，网格线只能落在 0.1 °C 的整数倍上
+        // 标签一位小数，但网格值必须是 0.5 的整数倍：26.0 / 26.5 / 27.0，而不是 26.2 / 27.2。
+        // unit 取 0.5 后档位是 0.5 × {1,2,5} × 10ⁿ = 0.5 / 1 / 2.5 / 5 / 10…，锚点也只能是
+        // 0.5 的倍数，于是 4 条网格线的值全部落在半度上（本图对刻度的硬要求）。
+        // 代价：最细一档就是 0.5 °C，跨度 < 1.0 °C 时窗口固定 1.5 °C，曲线比 0.1 档平
+        return 0.5f;
+    }
+
+    @Override
+    protected int getAnchorSlackUnits() {
+        // unit 0.5 的栅格比温度的数据步进粗得多，锚点可行区间必须留满一格半度（见基类钩子注释）
+        return 1;
     }
 
     @Override

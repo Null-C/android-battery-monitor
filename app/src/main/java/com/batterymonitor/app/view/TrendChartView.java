@@ -166,9 +166,11 @@ public abstract class TrendChartView extends View {
     protected abstract boolean includeZeroBaseline();
 
     /**
-     * Y 轴网格值的颗粒，即标签能**精确表达**的最小变化量：
-     * 电流 1（整数 mA）、电量 1（整数 %）、温度 0.1（一位小数 °C）。
-     * 网格线只会落在该值的整数倍上，这是"标签值 == 网格线的值"的前提
+     * Y 轴网格值的颗粒，即网格线**必须落在该值的整数倍上**：电流 1（整数 mA）、电量 1（整数 %）、
+     * 温度 0.5（半度 °C）。它是"标签值 == 网格线的值"的前提。
+     * 注意它与标签的小数位数不是同一件事：温度标签保留一位小数（能表达 0.1），但 unit 取 0.5，
+     * 刻度因此只落在半度上（26.0 / 26.5 / 27.0，不会出现 26.2）。只要标签精度不粗于 unit，
+     * 标签就仍能精确表达每个网格值
      */
     protected abstract float getStepUnit();
 
@@ -179,6 +181,22 @@ public abstract class TrendChartView extends View {
      */
     protected float getMaxDataCells() {
         return MAX_DATA_CELLS;
+    }
+
+    /**
+     * 锚点栅格余量（单位 = unit 的个数）：选步进时额外要求 {@code 3 × step - 跨度 ≥ 该值 × unit}。
+     *
+     * 锚点必须是 unit 的整数倍（见 findAxisLow），而可行区间 [max - 3 × step, min] 的长度恰好是
+     * 3 × step - 跨度。长度不足一个 unit 时，区间里可能一个栅格点都没有 —— findAxisLow 返回 NaN、
+     * 步进被迫升一档；下一帧数据相位稍变又有了落点，步进退回细档。轴于是在相邻两档之间逐帧翻
+     * （窗口差 2 倍，整条曲线上下跳），比死区要防的抖动更严重。留满一格即从构造上杜绝：
+     * 区间长度 ≥ 栅格间距 ⇒ 必有落点，NaN 升档路径对这类图永不触发。
+     *
+     * 数据本身落在 unit 栅格上的图（电流 mA、电量 % 都是整数）不需要余量，取默认 0；
+     * 温度的数据是浮点而 unit 是 0.5（栅格比数据步进粗），必须留满 1 格
+     */
+    protected int getAnchorSlackUnits() {
+        return 0;
     }
 
     /** 无有效数据时的提示文案资源 id，0 表示不绘制提示 */
@@ -325,7 +343,7 @@ public abstract class TrendChartView extends View {
     /**
      * 计算 Y 轴范围。
      *
-     * 网格线必须画在"标签能精确表达的数"上（整数 mA / 整数 % / 一位小数 °C）。
+     * 网格线必须画在"标签能精确表达的数"上（整数 mA / 整数 % / 半度 °C）。
      * 旧实现把网格线画在未取整的浮点值上、只把标签四舍五入：标着 70 的那条线其实位于
      * 69.5~70.5 之间的某个值，而折线上代表 70 的点按真正的 70 定位，二者必然错开。
      * 电量图轴跨度只有 3.6（旧实现的 MIN_SPAN 3 × 1.2 余量），0.5 的取整误差就是
@@ -333,8 +351,9 @@ public abstract class TrendChartView extends View {
      * 且错开的方向取决于当前 range 的相位（数据 min/max 一变就变），所以表现为"多数时候不对、
      * 偶尔恰好对"。误差与"标签精度 ÷ 轴跨度"成正比，故电流图（跨度几百 mA）几乎看不出来。
      *
-     * 现在改为：先按数据跨度选一个 nice step（unit × {1,2,5} × 10ⁿ），再选一个对齐到 unit 的
-     * 锚点 anchorLow，4 条网格线为 anchorLow + k × step（k = 0..3）。step 与 anchorLow 都是
+     * 现在改为：先按数据跨度选一个 nice step（unit × {1,2,5} × 10ⁿ，且须给锚点栅格留下落点，
+     * 见 getAnchorSlackUnits），再选一个对齐到 unit 的锚点 anchorLow，4 条网格线为
+     * anchorLow + k × step（k = 0..3）。step 与 anchorLow 都是
      * unit 的整数倍，标签于是**严格等于**网格线的值 —— 误差恒为 0，不是"变小"。
      *
      * 另有两处稳定性处理：
@@ -363,13 +382,19 @@ public abstract class TrendChartView extends View {
         int cells = GRID_LINES - 1;
         float unit = getStepUnit();
         float maxCells = includeZeroBaseline() ? MAX_DATA_CELLS_WITH_ZERO : getMaxDataCells();
+        float slack = getAnchorSlackUnits() * unit;
         float span = max - min;
 
-        float step = niceStep(span / maxCells, unit);
+        // 选步进：① 装得下数据（跨度 ≤ step × maxCells）；② 给锚点栅格留下落点（见 getAnchorSlackUnits）
+        float step = niceStep(Math.max(span / maxCells, (span + slack) / cells), unit);
         if (axisValid) {
-            // 跨度仍落在上一档的死区内就维持原步进，避免在档位边界反复翻档
-            float upper = axisStep * maxCells * STEP_TOLERANCE;
-            float lower = previousNiceStep(axisStep, unit) * maxCells / STEP_TOLERANCE;
+            // 跨度仍落在上一档的死区内就维持原步进，避免在档位边界反复翻档。
+            // 注意上界：留白项可以放宽 10%，栅格落点（cells × step - slack）却是硬约束，必须分开取 min ——
+            // 合并成 min(两项) × STEP_TOLERANCE 会把容差加到硬约束上，步进便会停在一个锚点无解的档上，
+            // 下一帧被迫升档、再下一帧又退回，轴在两档之间逐帧翻。下界取"更细一档的上限"（两项都算）再放宽
+            float upper = Math.min(axisStep * maxCells * STEP_TOLERANCE, cells * axisStep - slack);
+            float lower = maxSpanFor(previousNiceStep(axisStep, unit), maxCells, cells, slack)
+                    / STEP_TOLERANCE;
             if (span <= upper && span >= lower) {
                 step = axisStep;
             }
@@ -383,7 +408,9 @@ public abstract class TrendChartView extends View {
         }
 
         float low = findAxisLow(min, max, step);
-        // 浮点对齐取不到解时升一档步进重试：步进每轮至少翻倍，必然收敛（见 findAxisLow 注释）
+        // 兜底：锚点栅格取不到解时升一档步进重试（步进每轮至少翻倍，必然收敛）。
+        // 给锚点留了余量（getAnchorSlackUnits）的图不会走到这里，未留余量的图（数据本身就在
+        // unit 栅格上）也只在极窄的相位区间才会触发 —— 这条路径正是"轴逐帧翻档"的来源，慎用
         while (Float.isNaN(low)) {
             step = nextNiceStep(step, unit);
             low = findAxisLow(min, max, step);
@@ -404,8 +431,10 @@ public abstract class TrendChartView extends View {
      * 解一般不唯一，取"数据上下留白最均衡"的那个。
      *
      * 存在性：含 0 基线时可行区间 [-min/step, 3 - max/step] 长度为 3 - span/step ≥ 1
-     * （由 step ≥ span/2 保证）⇒ 必含整数 m；其余图可行区间长度为 3 - span/step ≥ 0.2 × span，
-     * 个别边界情形（如跨度不足一个 unit）可能不含 unit 的整数倍，此时返回 NaN 让调用方升档。
+     * （由 step ≥ span/2 保证）⇒ 必含整数 m。其余图的可行区间是 [max - 3 × step, min]，长度为
+     * 3 × step - span：只要它 ≥ 一个 unit（由 getAnchorSlackUnits 留出的余量保证），就必含
+     * unit 的整数倍（闭区间长度 ≥ 栅格间距 ⇒ 必有栅格点）；未留余量的图（数据本身落在 unit
+     * 栅格上，如整数 mA / 整数 %）在 3 × step - span < unit 的相位下可能无解，返回 NaN 让调用方升档。
      */
     private float findAxisLow(float min, float max, float step) {
         int cells = GRID_LINES - 1;
@@ -449,6 +478,14 @@ public abstract class TrendChartView extends View {
     /** 比当前档更细的上一档（已是最细的 unit 时返回 unit 本身，调用方据此无副作用） */
     private static float previousNiceStep(float step, float unit) {
         return niceStep(step / 2.6f, unit);
+    }
+
+    /**
+     * step 这一档能容纳的最大数据跨度 = min(留白上限, 锚点栅格可落点的上限)。
+     * 两项都是"硬上限"（不能乘 STEP_TOLERANCE），用于反推更细一档的换档门槛
+     */
+    private static float maxSpanFor(float step, float maxCells, int cells, float slack) {
+        return Math.min(step * maxCells, cells * step - slack);
     }
 
     /** 返回 ≥ value 的最小整数，ALIGN_EPSILON 吸收除法误差 */
