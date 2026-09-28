@@ -10,7 +10,7 @@
     <string name="label_min_current">最低</string>
     <string name="label_max_current">最高</string>
     <string name="label_avg_current">平均（近 10 秒）</string>
-    <string name="label_battery_info">📊 电池信息</string>
+    <string name="label_battery_info">🔌 电池信息</string>
     <string name="label_device_info">📱 设备信息</string>
     <string name="label_level">电量</string>
     <string name="label_health">健康度</string>
