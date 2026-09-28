@@ -43,4 +43,9 @@ public class CurrentChartView extends TrendChartView {
     protected boolean includeZeroBaseline() {
         return true;
     }
+
+    @Override
+    protected float getStepUnit() {
+        return 1f; // 电流以整数 mA 显示，网格线只能落在整数 mA 上
+    }
 }

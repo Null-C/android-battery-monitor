@@ -13,9 +13,6 @@ import java.util.Locale;
  * 与电流图不同：Y 轴自适应温度数据范围（不含 0 基线），否则 25~35°C 的波动会被压成直线
  */
 public class TemperatureChartView extends TrendChartView {
-    /** Y 轴最小跨度（°C），保证 4 个网格标签保留一位小数后不会重复 */
-    private static final float MIN_SPAN = 0.5f;
-
     /** 已解析的折线色，0 表示尚未解析 */
     private int lineColor;
 
@@ -64,8 +61,8 @@ public class TemperatureChartView extends TrendChartView {
     }
 
     @Override
-    protected float getMinSpan() {
-        return MIN_SPAN;
+    protected float getStepUnit() {
+        return 0.1f; // 温度标签保留一位小数，网格线只能落在 0.1 °C 的整数倍上
     }
 
     @Override

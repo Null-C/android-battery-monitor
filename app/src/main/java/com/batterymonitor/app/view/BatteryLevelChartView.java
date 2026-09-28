@@ -11,14 +11,6 @@ import com.batterymonitor.app.R;
  * 与电流图不同：Y 轴自适应电量数据范围（不含 0 基线），否则常年在高位的电量会被压成直线
  */
 public class BatteryLevelChartView extends TrendChartView {
-    /**
-     * Y 轴最小跨度（%）。
-     * 电量是整数百分比且 3 分钟内常常一个采样点都不变，跨度退化成 0 时若不强制最小跨度，
-     * 4 个整数标签必然重复。基类还会再留 10% 余量，故最终跨度 = 3 × 1.2 = 3.6，
-     * 网格步进 1.2 > 1，相邻标签四舍五入后至少相差 1，必定互不相同
-     */
-    private static final float MIN_SPAN = 3f;
-
     /** 已解析的折线色，0 表示尚未解析 */
     private int lineColor;
 
@@ -65,8 +57,20 @@ public class BatteryLevelChartView extends TrendChartView {
     }
 
     @Override
-    protected float getMinSpan() {
-        return MIN_SPAN;
+    protected float getStepUnit() {
+        return 1f; // 电量是整数百分比，网格线只能落在整数 % 上（折线因此精确落在线上的 70/69/…）
+    }
+
+    /**
+     * 宁可贴边也不留白：数据允许占满 3 格，从而在窗口跨度 ≤ 3%（3 分钟内电量变化不超过 3 个点，
+     * 正常使用必然如此）时**恒用步进 1**。步进 1 时 4 条网格线是连续的 4 个整数，窗口内出现过的
+     * 每个整数值都有一条与自己同名的线，折线正好落在线上 —— 这是用户唯一能直接验证的直觉。
+     * 若按默认的 2.5 留白，跨度落在 2.5%~3% 时步进会被抬到 2，网格线变成 71/69/67…，
+     * 70% 就会落在 69 与 71 的正中间，又回到"没落在线上"的观感
+     */
+    @Override
+    protected float getMaxDataCells() {
+        return 3f;
     }
 
     @Override

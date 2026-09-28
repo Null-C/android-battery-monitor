@@ -28,10 +28,24 @@ public abstract class TrendChartView extends View {
      * 对 MainActivity 公开，用于推导前台常亮时长，使「时间轴长度」与「常亮时长」同源
      */
     public static final int MAX_POINTS = 180;
-    /** 水平网格线数量 */
+    /** 水平网格线数量（4 条 = 3 格） */
     private static final int GRID_LINES = 4;
-    /** Y 轴范围上下各留的余量比例 */
-    private static final float PADDING_RATIO = 0.1f;
+    /**
+     * 数据最多占几格。
+     * 默认 2.5：数据占 3 格轴的 40%~83%，既不贴边也不至于压成直线（温度图用这个值）。
+     * 含 0 基线的图（电流）被强制为 2：只有 step ≥ span/2 才能保证 0 一定落在某条网格线上
+     * （推导见 findAxisLow）。放宽到 2.5 时可行区间可能不含整数个 step，0 就钉不住了。
+     * 电量图另有更硬的约束（整数标签必须一一对应到网格线），由子类覆写 getMaxDataCells()
+     */
+    private static final float MAX_DATA_CELLS = 2.5f;
+    private static final float MAX_DATA_CELLS_WITH_ZERO = 2f;
+    /**
+     * 步进死区：数据跨度恰好压在档位边界（nice step 的换档点）时，把换档门槛放宽/收紧 10%。
+     * 没有它的话，跨度在边界上抖动会让轴范围在相邻两档（相差 2~2.5 倍）之间反复翻
+     */
+    private static final float STEP_TOLERANCE = 1.1f;
+    /** 对齐容差：吸收 34.0f / 0.1f 这类除法的浮点误差（0.001 格在屏幕上看不出来） */
+    private static final float ALIGN_EPSILON = 1e-3f;
 
     // 绘制区域内边距（单位：dp）
     // 左侧保底值是渲染稳定性的承重墙：它让 labelLeft 在数据范围变化时不跳变。
@@ -58,6 +72,12 @@ public abstract class TrendChartView extends View {
     private final ArrayList<Float> data = new ArrayList<>();
     /** Y 轴范围 [0]=yMin [1]=yMax，复用数组避免每帧分配 */
     private final float[] range = new float[2];
+    /** 最下方网格线的值（等于当前 range[0]）；axisValid 为 false 时无意义 */
+    private float axisLow;
+    /** 相邻网格线的值差（即当前轴的 nice step） */
+    private float axisStep;
+    /** 轴范围是否已算出（首帧为 false，之后一直为 true —— 数据只滚动不重置） */
+    private boolean axisValid;
     private final String[] axisLabels = new String[GRID_LINES];
     private final String[] xLabels = new String[4];
     private final float density;
@@ -146,11 +166,19 @@ public abstract class TrendChartView extends View {
     protected abstract boolean includeZeroBaseline();
 
     /**
-     * Y 轴最小跨度，避免标签因跨度过小而重复；0 表示不限制。
-     * 该约束对"采样值全部相等"（跨度恰好为 0）的退化情形同样生效
+     * Y 轴网格值的颗粒，即标签能**精确表达**的最小变化量：
+     * 电流 1（整数 mA）、电量 1（整数 %）、温度 0.1（一位小数 °C）。
+     * 网格线只会落在该值的整数倍上，这是"标签值 == 网格线的值"的前提
      */
-    protected float getMinSpan() {
-        return 0f;
+    protected abstract float getStepUnit();
+
+    /**
+     * 数据最多占几格（网格线 4 条 = 3 格），即"留白多少"的取舍：值越小数据越贴边、分辨率越高。
+     * 默认 2.5：数据占 3 格轴的 40%~83%，既不贴边也不至于压成直线。
+     * 含 0 基线的图被强制为 2（见 MAX_DATA_CELLS_WITH_ZERO），此钩子对其无效
+     */
+    protected float getMaxDataCells() {
+        return MAX_DATA_CELLS;
     }
 
     /** 无有效数据时的提示文案资源 id，0 表示不绘制提示 */
@@ -294,7 +322,28 @@ public abstract class TrendChartView extends View {
         }
     }
 
-    /** 计算 Y 轴范围：先按需纳入 0 基线，再补偿小跨度与退化，最后留出余量 */
+    /**
+     * 计算 Y 轴范围。
+     *
+     * 网格线必须画在"标签能精确表达的数"上（整数 mA / 整数 % / 一位小数 °C）。
+     * 旧实现把网格线画在未取整的浮点值上、只把标签四舍五入：标着 70 的那条线其实位于
+     * 69.5~70.5 之间的某个值，而折线上代表 70 的点按真正的 70 定位，二者必然错开。
+     * 电量图轴跨度只有 3.6（旧实现的 MIN_SPAN 3 × 1.2 余量），0.5 的取整误差就是
+     * 0.5/3.6 × 图高 ≈ 10dp（约 0.4 格），肉眼可见，
+     * 且错开的方向取决于当前 range 的相位（数据 min/max 一变就变），所以表现为"多数时候不对、
+     * 偶尔恰好对"。误差与"标签精度 ÷ 轴跨度"成正比，故电流图（跨度几百 mA）几乎看不出来。
+     *
+     * 现在改为：先按数据跨度选一个 nice step（unit × {1,2,5} × 10ⁿ），再选一个对齐到 unit 的
+     * 锚点 anchorLow，4 条网格线为 anchorLow + k × step（k = 0..3）。step 与 anchorLow 都是
+     * unit 的整数倍，标签于是**严格等于**网格线的值 —— 误差恒为 0，不是"变小"。
+     *
+     * 另有两处稳定性处理：
+     *  · 步进死区：跨度恰好压在档位边界时不让步进来回翻（否则轴整体跳 2~2.5 倍，非常刺眼）；
+     *  · 锚点迟滞：步进不变且当前轴仍容得下全部数据时沿用旧锚点。锚点若跟着数据中位漂移，
+     *    整条曲线（含历史点）会每帧上下跳一格，而一格就是 1/3 个图高。
+     * 0 基线由图外的构造保证：锚点是 step 的整数倍、且构建时让 0 落在某条网格线上，
+     * 之后迟滞沿用的永远是同一个轴，0 不可能掉出去。
+     */
     private void computeRange() {
         float min = Float.MAX_VALUE;
         float max = -Float.MAX_VALUE;
@@ -311,25 +360,110 @@ public abstract class TrendChartView extends View {
             max = Math.max(max, 0f);
         }
 
+        int cells = GRID_LINES - 1;
+        float unit = getStepUnit();
+        float maxCells = includeZeroBaseline() ? MAX_DATA_CELLS_WITH_ZERO : getMaxDataCells();
         float span = max - min;
-        // 最小跨度必须在"采样值全部相等"（span == 0）时也生效。电量是整数百分比，
-        // 3 分钟内常常一个点都不变，若让退化情形先走 ±1 分支，跨度就只有 2，
-        // 网格步进 0.733 → 4 个整数标签必然重复（如 86 / 85 / 85 / 84）。
-        if (span < getMinSpan()) {
-            float center = (min + max) / 2f;
-            min = center - getMinSpan() / 2f;
-            max = center + getMinSpan() / 2f;
-        }
-        // 退化保护：MIN_SPAN 为 0（电流图）且采样值全相同 —— 如设备不支持电流检测时恒为 0。
-        // 此时维持原有行为（向两侧各扩 1），电流图在该情形下的渲染逐位不变。
-        if (max - min <= 0f) {
-            min -= 1f;
-            max += 1f;
+
+        float step = niceStep(span / maxCells, unit);
+        if (axisValid) {
+            // 跨度仍落在上一档的死区内就维持原步进，避免在档位边界反复翻档
+            float upper = axisStep * maxCells * STEP_TOLERANCE;
+            float lower = previousNiceStep(axisStep, unit) * maxCells / STEP_TOLERANCE;
+            if (span <= upper && span >= lower) {
+                step = axisStep;
+            }
         }
 
-        float fullSpan = max - min;
-        range[0] = min - fullSpan * PADDING_RATIO;
-        range[1] = max + fullSpan * PADDING_RATIO;
+        if (axisValid && step == axisStep
+                && min >= axisLow && max <= axisLow + cells * step) {
+            range[0] = axisLow;
+            range[1] = axisLow + cells * step;
+            return;
+        }
+
+        float low = findAxisLow(min, max, step);
+        // 浮点对齐取不到解时升一档步进重试：步进每轮至少翻倍，必然收敛（见 findAxisLow 注释）
+        while (Float.isNaN(low)) {
+            step = nextNiceStep(step, unit);
+            low = findAxisLow(min, max, step);
+        }
+        axisLow = low;
+        axisStep = step;
+        axisValid = true;
+        range[0] = low;
+        range[1] = low + cells * step;
+    }
+
+    /**
+     * 选最下方那条网格线的值（锚点），4 条网格线为 anchorLow + k × step（k = 0..3）。
+     * 约束：
+     *  ① anchorLow ≤ min 且 anchorLow + 3 × step ≥ max —— 必须容下全部数据；
+     *  ② 含 0 基线的图要求 0 落在网格线上 → anchorLow 只能取 -m × step；
+     *     其余图要求 anchorLow 是 unit 的整数倍 —— 标签才严格等于网格线的值。
+     * 解一般不唯一，取"数据上下留白最均衡"的那个。
+     *
+     * 存在性：含 0 基线时可行区间 [-min/step, 3 - max/step] 长度为 3 - span/step ≥ 1
+     * （由 step ≥ span/2 保证）⇒ 必含整数 m；其余图可行区间长度为 3 - span/step ≥ 0.2 × span，
+     * 个别边界情形（如跨度不足一个 unit）可能不含 unit 的整数倍，此时返回 NaN 让调用方升档。
+     */
+    private float findAxisLow(float min, float max, float step) {
+        int cells = GRID_LINES - 1;
+        if (includeZeroBaseline()) {
+            int mMin = ceilInt(-min / step);
+            int mMax = floorInt(cells - max / step);
+            if (mMin > mMax) {
+                return Float.NaN;
+            }
+            // 0 两侧的留白尽量均衡：取可行区间的中点
+            return -clampInt(Math.round((mMin + mMax) / 2f), mMin, mMax) * step;
+        }
+        float unit = getStepUnit();
+        int kMin = ceilInt((max - cells * step) / unit);
+        int kMax = floorInt(min / unit);
+        if (kMin > kMax) {
+            return Float.NaN;
+        }
+        // 数据居中后再吸附到最近的 unit 整数倍，最后夹回可行区间
+        float centeredLow = (min + max) / 2f - cells * step / 2f;
+        return clampInt(Math.round(centeredLow / unit), kMin, kMax) * unit;
+    }
+
+    /** unit × {1,2,5} × 10ⁿ 序列中 ≥ required 的最小值（循环上限纯属防御，实际数据远达不到） */
+    private static float niceStep(float required, float unit) {
+        float decade = unit;
+        for (int i = 0; i < 64; i++) {
+            if (decade >= required) return decade;
+            if (decade * 2f >= required) return decade * 2f;
+            if (decade * 5f >= required) return decade * 5f;
+            decade *= 10f;
+        }
+        return decade;
+    }
+
+    /** 比当前档更粗的下一档 */
+    private static float nextNiceStep(float step, float unit) {
+        return niceStep(step * 1.001f, unit);
+    }
+
+    /** 比当前档更细的上一档（已是最细的 unit 时返回 unit 本身，调用方据此无副作用） */
+    private static float previousNiceStep(float step, float unit) {
+        return niceStep(step / 2.6f, unit);
+    }
+
+    /** 返回 ≥ value 的最小整数，ALIGN_EPSILON 吸收除法误差 */
+    private static int ceilInt(float value) {
+        return (int) Math.ceil(value - ALIGN_EPSILON);
+    }
+
+    /** 返回 ≤ value 的最大整数 */
+    private static int floorInt(float value) {
+        return (int) Math.floor(value + ALIGN_EPSILON);
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        if (value < min) return min;
+        return value > max ? max : value;
     }
 
     /** 惰性解析 X 轴文案（两图共用的时间轴语义） */
